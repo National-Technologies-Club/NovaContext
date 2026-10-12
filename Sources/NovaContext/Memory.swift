@@ -45,4 +45,6 @@ public enum NovaContextError: Error, Equatable, Sendable {
     case unsupportedSchema(Int)
     case invalidStore
     case closed
+    case tokenCounterRequired
+    case invalidTokenCount
 }

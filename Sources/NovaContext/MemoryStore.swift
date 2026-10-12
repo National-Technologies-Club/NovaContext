@@ -50,6 +50,23 @@ public final class MemoryStore: Sendable {
         }
     }
 
+    /// Returns pinned/recent memories packed within the requested context limits.
+    /// Reads one coherent scope snapshot, then releases storage before counting tokens.
+    /// Pinned records rank first, followed by update time descending and UUID ascending.
+    /// Records that do not fit are omitted whole; the result reports every omission.
+    /// Subsequent writes are reflected on the next request. This method performs no writes.
+    public func context(in scope: String, budget: ContextBudget = .init(),
+                        tokenCounter: (any TokenCounter)? = nil) async throws -> ContextPayload {
+        try Task.checkCancellation()
+        try ContextBuilder.validate(budget, tokenCounter: tokenCounter)
+        let memories = try await storage.perform { owner, request in
+            try owner.requireOpen().readScope(scope, request: request)
+        }
+        // The snapshot and serial queue are released before caller-supplied tokenization.
+        try Task.checkCancellation()
+        return try ContextBuilder.build(memories: memories, budget: budget, tokenCounter: tokenCounter)
+    }
+
     /// Drains earlier work and closes the handle. Repeated calls retain the same outcome.
     /// Cleanup runs even if the calling task is cancelled. Reopen with a new store instance.
     public func close() async throws {

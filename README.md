@@ -2,7 +2,7 @@
 
 Persistent, scoped memory for Swift applications, backed by [NovaGraph](https://github.com/rhindsntc/NovaGraph).
 
-The first implementation provides durable memory storage. Context selection, token budgeting, and the on-device LLM example are the next planned slices. No model runtime or network service is required to store and read memories.
+NovaContext provides durable memory storage and deterministic context assembly with explicit byte limits and optional model-specific token limits. No model runtime or network service is required. The on-device LLM example is the next planned slice.
 
 ## Installation
 
@@ -59,6 +59,25 @@ try await store.clear(scope: "project:nova")
 
 Forgetting a missing record or clearing a missing scope succeeds. Deletion is durable. There is no automatic expiry, eviction, extraction, or revision history. An origin of `.model` records provenance; it does not certify the content as true.
 
+## Build context
+
+Given an open store, select the scope you want the model to use:
+
+```swift
+let context = try await store.context(
+    in: "project:nova",
+    budget: ContextBudget(maxMemories: 8, maxUTF8Bytes: 4_096)
+)
+print(context.text)         // Reference header + JSON, or an empty string
+print(context.omittedCount)
+```
+
+Pinned memories rank first, followed by the most recently updated memories. UUID breaks ties consistently. Records that do not fit are skipped whole; later smaller records can still fit. Pinning never overrides a limit. Updates and deletions appear on the next context request.
+
+The defaults are **12 memories within 8 KiB**. Bytes include the header, metadata, and JSON escaping. To enforce an additional token allowance, pass `maxTokens` and your model's `TokenCounter`; NovaContext does not guess tokens from character counts. Keep separate room for instructions, the question, conversation, model formatting, and the response.
+
+Read the [usage guide](Guides/Usage.md) for token integration, cancellation, empty-context behavior, and scope selection. Context assembly retrieves a coherent snapshot and releases the storage queue before tokenization.
+
 ## Initial limits
 
 | Item | Limit |
@@ -93,6 +112,6 @@ swift test
 swift build -c release
 ```
 
-Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
+Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context tests cover deterministic ranking, complete rendered byte/token accounting, omissions, Unicode, scope isolation, and storage access during tokenization. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
 
-This is the persistent-memory slice of v0.1. The next slice adds deterministic bounded context assembly. Packaging checks and an on-device model example follow it.
+Persistent storage and bounded context assembly are implemented. The next slice adds the on-device example and lifecycle helpers; broader packaging and release checks follow. The package does not yet include a model adapter, semantic search, or automatic summarization.
