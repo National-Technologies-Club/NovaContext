@@ -1,0 +1,12 @@
+.build/
+.swiftpm/
+Package.resolved
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+.DS_Store
+.idea/
+.superpowers/
+/docs/
+*.novacontext/
