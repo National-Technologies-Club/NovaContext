@@ -80,4 +80,29 @@ The storage queue returns owned memory values from a coherent read, then release
 
 Cancellation is checked before and after storage retrieval and between packing attempts, including after a counter returns. The counter is synchronous and cannot be forcibly interrupted, so keep it bounded. A cancelled context request does not return a partial selection or alter stored memories. Nova may surface its own typed cancellation or deadline error during the database read.
 
-Close the store explicitly to observe storage errors. Closed stores reject context requests. Context assembly leaves memory content unchanged; pinning and provenance do not make model-generated claims authoritative. Memory trim, suspend/resume helpers and an on-device model example are scheduled for the next implementation slice.
+Close the store explicitly to observe storage errors. Closed stores reject context requests. Context assembly leaves memory content unchanged; pinning and provenance do not make model-generated claims authoritative. See the lifecycle contract below and the [on-device example](../Examples/OnDeviceMemory/README.md).
+
+
+## Lifecycle
+
+```swift
+// Given an active store:
+try await store.trimMemory() // Evict cached records, preserving durable memories
+try await store.suspend()    // Checkpoint and stop ordinary operations
+try await store.resume()     // Restore access before reading or writing
+try await store.close()      // End ownership; reopen with MemoryStore.open(at:)
+```
+
+All four operations are ordered on the same private queue as complete memory reads/writes. The queue waits for Nova's async lifecycle completion on a dedicated Dispatch queue, never on the main actor or Swift cooperative executor. Tokenization and model invocation do not hold the storage queue.
+
+| State | Behavior |
+| --- | --- |
+| Active | Read, write, assemble context and trim; resume is a no-op |
+| Suspended | Ordinary operations and trim throw `.suspended`; resume and close remain allowed |
+| Closed | Operations throw `.closed`; repeated close retains its original outcome |
+
+Once a suspension attempt starts, even failure leaves NovaContext access blocked because the underlying database may have entered suspension. Repeated suspend returns that attempt's original outcome. A successful resume restores access and clears the saved suspension outcome; a failed resume leaves access blocked and may be retried. Closing is allowed after failed suspension or resume. A cancellation rejected before the attempt starts leaves state unchanged.
+
+Lifecycle cancellation is forwarded to Nova. Storage maintenance that already completed retains its actual outcome rather than becoming a misleading cancellation failure. Memory writes likewise retain committed or ambiguous outcomes when cancellation arrives late. Errors are never retried or suppressed automatically. A context request that captured its snapshot before suspension can still finish packing it; suspension does not revoke already-owned values.
+
+The host application owns lifecycle timing. Serialize foreground/background transitions and cancel its model work when appropriate; the example demonstrates this with a small task chain. The OS need not grant enough background time to finish a checkpoint, so do not defer your first durable write until backgrounding. `trimMemory()` is explicit and does not delete, expire or summarize content.

@@ -10,6 +10,17 @@ final class NovaStorage {
         try db.queryResult(program, parameters: parameters, request: request)
     }
 
+    enum LifecycleAction: Sendable { case trim, suspend, resume }
+    typealias LifecycleExecutor = @Sendable (GraphDatabase, LifecycleAction) async throws -> Void
+
+    static func executeLifecycle(_ database: GraphDatabase, _ action: LifecycleAction) async throws {
+        switch action {
+        case .trim: _ = try await database.trimMemory(to: 0)
+        case .suspend: try await database.suspend()
+        case .resume: try await database.resume()
+        }
+    }
+
     let handle: GraphDatabase
     private let clock: @Sendable () -> Int64
     private let mutation: MutationExecutor

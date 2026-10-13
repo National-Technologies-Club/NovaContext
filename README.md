@@ -2,7 +2,7 @@
 
 Persistent, scoped memory for Swift applications, backed by [NovaGraph](https://github.com/rhindsntc/NovaGraph).
 
-NovaContext provides durable memory storage and deterministic context assembly with explicit byte limits and optional model-specific token limits. No model runtime or network service is required. The on-device LLM example is the next planned slice.
+NovaContext provides durable memory storage and deterministic context assembly with explicit byte limits and optional model-specific token limits. No model runtime or network service is required. A separate [on-device example](Examples/OnDeviceMemory/README.md) integrates Apple Foundation Models.
 
 ## Installation
 
@@ -78,6 +78,19 @@ The defaults are **12 memories within 8 KiB**. Bytes include the header, metadat
 
 Read the [usage guide](Guides/Usage.md) for token integration, cancellation, empty-context behavior, and scope selection. Context assembly retrieves a coherent snapshot and releases the storage queue before tokenization.
 
+## On-device example and lifecycle
+
+The [SwiftUI example](Examples/OnDeviceMemory/README.md) lets you remember a decision, inspect the selected context, ask an on-device model, and explicitly forget or save an answer. It requires iOS 26+ for Foundation Models and includes a labelled model-free preview. Physical-device generation validation is pending.
+
+```swift
+// Given an active store:
+try await store.trimMemory() // Drop cached records, preserving saved memories
+try await store.suspend()    // Checkpoint and pause access
+try await store.resume()     // Allow reads and writes again
+```
+
+The host app forwards lifecycle events; the SDK imports neither SwiftUI nor UIKit. A suspended store rejects ordinary operations until resume succeeds. Suspension failures also require resume or close; errors remain observable. See the [lifecycle contract](Guides/Usage.md#lifecycle).
+
 ## Initial limits
 
 | Item | Limit |
@@ -93,7 +106,7 @@ Each operation reads and validates the bounded scope. Nova's query workspace, re
 
 ## Concurrency, errors, and close
 
-All operations run on a private serial storage queue, including the complete admission check and write. Scope creation, memory replacement, and its membership edge are one atomic Nova transaction. A successful write requires a durable mutation receipt.
+All storage operations run on a private serial storage queue, including the complete admission check and write. Scope creation, memory replacement, and its membership edge are one atomic Nova transaction. A successful write requires a durable mutation receipt.
 
 Call `close()` explicitly to drain earlier queued operations and observe checkpoint/storage errors. Close runs even from a cancelled task. Its result is retained for repeated calls; a closed instance rejects further operations with `.closed`. Use `MemoryStore.open(at:)` to create a new instance when reopening. Dropping an unclosed store schedules best-effort background cleanup, which cannot report errors.
 
@@ -112,6 +125,6 @@ swift test
 swift build -c release
 ```
 
-Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context tests cover deterministic ranking, complete rendered byte/token accounting, omissions, Unicode, scope isolation, and storage access during tokenization. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
+Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context tests cover deterministic ranking, complete rendered byte/token accounting, omissions, Unicode, scope isolation, and storage access during tokenization. Lifecycle tests cover suspension, failed transitions, cancellation forwarding, queue ordering and data preservation. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
 
-Persistent storage and bounded context assembly are implemented. The next slice adds the on-device example and lifecycle helpers; broader packaging and release checks follow. The package does not yet include a model adapter, semantic search, or automatic summarization.
+Persistent storage, bounded context assembly, lifecycle helpers, and the separate on-device example are implemented. Package CI, clean-consumer checks and final documentation are the next slice. The core package includes no model runtime, semantic search, or automatic summarization.

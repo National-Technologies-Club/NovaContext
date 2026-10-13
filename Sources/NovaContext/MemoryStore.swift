@@ -14,8 +14,9 @@ public final class MemoryStore: Sendable {
     }
 
     static func open(at directory: URL, clock: @escaping @Sendable () -> Int64,
-                     mutation: @escaping NovaStorage.MutationExecutor = NovaStorage.executeMutation) async throws -> MemoryStore {
-        let storage = StorageQueue()
+                     mutation: @escaping NovaStorage.MutationExecutor = NovaStorage.executeMutation,
+                     lifecycle: @escaping NovaStorage.LifecycleExecutor = NovaStorage.executeLifecycle) async throws -> MemoryStore {
+        let storage = StorageQueue(lifecycle: lifecycle)
         return try await storage.perform { owner, request in
             owner.database = try NovaStorage(directory: directory, clock: clock, mutation: mutation, request: request)
             return MemoryStore(storage: owner)
@@ -67,6 +68,16 @@ public final class MemoryStore: Sendable {
         return try ContextBuilder.build(memories: memories, budget: budget, tokenCounter: tokenCounter)
     }
 
+    /// Evicts eligible cached records without deleting memories. Requires an active store.
+    public func trimMemory() async throws { try await storage.performLifecycle(.trim) }
+
+    /// Checkpoints and stops ordinary operations until resume succeeds. A failed attempt
+    /// also blocks operations; repeated suspend retains its outcome until successful resume.
+    public func suspend() async throws { try await storage.performLifecycle(.suspend) }
+
+    /// Restores access after suspension. Failure leaves the store suspended; safe to retry.
+    public func resume() async throws { try await storage.performLifecycle(.resume) }
+
     /// Drains earlier work and closes the handle. Repeated calls retain the same outcome.
     /// Cleanup runs even if the calling task is cancelled. Reopen with a new store instance.
     public func close() async throws {
@@ -82,15 +93,20 @@ public final class MemoryStore: Sendable {
     }
 }
 
-/// The only unchecked boundary: all mutable state and NovaStorage access are confined
+/// Queue confinement boundary: all mutable state and NovaStorage access are confined
 /// to `queue`. Every submitted closure retains this owner until its operation finishes.
 private final class StorageQueue: @unchecked Sendable {
     private let queue = DispatchQueue(label: "NovaContext.storage", qos: .utility)
     var database: NovaStorage?
     var closeResult: Result<Void, Error>?
+    private var suspendResult: Result<Void, Error>?
+    private let lifecycle: NovaStorage.LifecycleExecutor
 
-    func requireOpen() throws -> NovaStorage {
+    init(lifecycle: @escaping NovaStorage.LifecycleExecutor) { self.lifecycle = lifecycle }
+
+    func requireOpen(allowSuspended: Bool = false) throws -> NovaStorage {
         guard closeResult == nil, let database else { throw NovaContextError.closed }
+        if !allowSuspended && suspendResult != nil { throw NovaContextError.suspended }
         return database
     }
 
@@ -106,6 +122,30 @@ private final class StorageQueue: @unchecked Sendable {
         } onCancel: {
             request.cancel()
         }
+    }
+
+    func performLifecycle(_ action: NovaStorage.LifecycleAction) async throws {
+        let bridge = LifecycleBridge()
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await perform { owner, _ in
+                let handle = try owner.requireOpen(allowSuspended: action != .trim).handle
+                try bridge.checkCancellation()
+                switch action {
+                case .suspend:
+                    if let result = owner.suspendResult { return try result.get() }
+                    let result = Result { try bridge.run { try await owner.lifecycle(handle, action) } }
+                    owner.suspendResult = result
+                    try result.get()
+                case .resume:
+                    guard owner.suspendResult != nil else { return }
+                    try bridge.run { try await owner.lifecycle(handle, action) }
+                    owner.suspendResult = nil
+                case .trim:
+                    try bridge.run { try await owner.lifecycle(handle, action) }
+                }
+            }
+        } onCancel: { bridge.cancel() }
     }
 
     deinit {
