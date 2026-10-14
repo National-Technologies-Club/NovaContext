@@ -18,7 +18,9 @@ Add the product to your target:
 .product(name: "NovaContext", package: "novacontext")
 ```
 
-The package uses Swift tools 6.0 and pins `GraphDBKit` from NovaGraph **1.0.0**. Declared deployment floors are iOS 16 and macOS 13. These declarations are separate from runtime qualification; the current storage tests were run on an Apple Silicon Mac with Swift 6.4 / macOS 27.0.1.
+No NovaContext remote or release tag is published yet. The local package is the current installation path.
+
+The package uses Swift tools 6.0 and pins `GraphDBKit` from NovaGraph **1.0.0**. Declared deployment floors are iOS 16 and macOS 13. See [compatibility and validation](Guides/Compatibility.md) for the concrete toolchains, simulator checks and owner-reported sample result.
 
 ## Remember and recall
 
@@ -39,8 +41,12 @@ func rememberDecision(at directory: URL) async throws {
             pinned: true
         )
         let saved = try await store.remember(input, in: "project:nova")
-        let recalled = try await store.memory(id: saved.id, in: "project:nova")
-        print(recalled?.text ?? "No memory")
+        let context = try await store.context(
+            in: "project:nova",
+            budget: ContextBudget(maxMemories: 8, maxUTF8Bytes: 4_096)
+        )
+        print(context.text) // Pass this reference block to your app's model.
+        print("Saved memory:", saved.id, "Omitted:", context.omittedCount)
         try await store.close()
     } catch {
         try? await store.close()
@@ -80,7 +86,7 @@ Read the [usage guide](Guides/Usage.md) for token integration, cancellation, emp
 
 ## On-device example and lifecycle
 
-The [SwiftUI example](Examples/OnDeviceMemory/README.md) lets you remember a decision, inspect the selected context, ask an on-device model, and explicitly forget or save an answer. It requires iOS 26+ for Foundation Models and includes a labelled model-free preview. Physical-device generation validation is pending.
+The [SwiftUI example](Examples/OnDeviceMemory/README.md) lets you remember a decision, inspect the selected context, ask an on-device model, and explicitly forget or save an answer. It requires iOS 26+ for Foundation Models and includes a labelled model-free preview. The owner reports that the installed sample worked well. Detailed device/build information and memory/latency observations remain unrecorded; see [validation status](Guides/Compatibility.md#validation-status).
 
 ```swift
 // Given an active store:
@@ -127,4 +133,6 @@ swift build -c release
 
 Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context tests cover deterministic ranking, complete rendered byte/token accounting, omissions, Unicode, scope isolation, and storage access during tokenization. Lifecycle tests cover suspension, failed transitions, cancellation forwarding, queue ordering and data preservation. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
 
-Persistent storage, bounded context assembly, lifecycle helpers, and the separate on-device example are implemented. Package CI, clean-consumer checks and final documentation are the next slice. The core package includes no model runtime, semantic search, or automatic summarization.
+A macOS [CI workflow](.github/workflows/ci.yml) runs the three build/test commands above for pushes and pull requests. Hosted checks cover the core package without requiring Apple Intelligence. The sample's simulator tests are run separately as described in its README.
+
+Persistent storage, bounded context assembly, lifecycle helpers and the separate on-device example form the v0.1 candidate. Read the [changelog](CHANGELOG.md) and [compatibility guide](Guides/Compatibility.md) before integrating. The core package includes no model runtime, semantic search or automatic summarization.
