@@ -169,6 +169,8 @@ import NovaContext
         return task
     }
 
+    func checkModelAvailability() { availability = responder.availability }
+
     func cancelGeneration() { generationTask?.cancel() }
 
     private func refresh(from store: MemoryStore) async throws {
@@ -192,6 +194,8 @@ struct MemoryDemoView: View {
                         .font(.subheadline).foregroundStyle(.secondary)
                     if case .unavailable(let reason) = model.availability {
                         Text(reason).foregroundStyle(.secondary)
+                        Button("Check model availability") { model.checkModelAvailability() }
+                            .accessibilityIdentifier("check-model-availability")
                     }
                     if let error = model.memoryError { Text(error).foregroundStyle(.red) }
                 }

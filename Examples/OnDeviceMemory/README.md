@@ -4,7 +4,7 @@ A small SwiftUI app that stores project decisions in NovaContext and supplies se
 
 ## Run
 
-Requirements: Xcode 26 or newer, XcodeGen, and iOS 26 or newer. Generation needs a device eligible for Apple Intelligence, with Apple Intelligence enabled and its on-device model ready. The UI reports model availability; remembering, inspecting and deleting memories remain available without it.
+Requirements: Xcode 26 or newer, XcodeGen, and iOS 26 or newer. Generation needs a device eligible for Apple Intelligence, with Apple Intelligence enabled and its on-device model ready. The UI reports model availability; remembering, inspecting and deleting memories remain available without it. If the model becomes ready while the app stays open, use **Check model availability** to enable Ask without reopening the app. This check does not generate a response.
 
 From the NovaContext repository root:
 
@@ -54,11 +54,13 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-The hosted tests use real temporary Nova databases and fake responders. They verify prompt contents, scope/deletion isolation, byte bounds, model-unavailable state, explicit model provenance, cancellation, lifecycle sequencing, fresh sessions, and no hidden retry on context-window failure. The test host opens no demonstration database.
+The sample integration tests use real temporary Nova databases and fake responders. They verify prompt contents, scope/deletion isolation, byte bounds, model-unavailable state, explicit model provenance, cancellation, lifecycle sequencing, fresh sessions, and no hidden retry on context-window failure. The test host opens no demonstration database.
 
 Local validation on 2026-10-12 used Xcode 27.0 (27A266a) and the iPhone 17 Pro simulator on iOS 26.5. Nine sample tests passed, and an unsigned iOS device build succeeded. These tests and the model-free launch/layout check do not validate actual on-device generation. Older declared core deployment targets are not device-qualified by this run.
 
 **Owner-reported sample result (2026-10-14):** the owner installed and tested OnDeviceMemory and reported that it worked well. Device, OS, build configuration, source revision, individual walkthrough outcomes and real-model versus preview mode were not specified, so this is recorded as a successful manual sample report, not a completed qualification matrix.
+
+On 2026-10-14, all ten sample integration tests passed on the same simulator, including unavailable-to-ready recovery without a scene transition.
 
 The remaining detailed record is the walkthrough above on an eligible iPhone with real generation, plus one observation of combined app/model memory and first-response latency in Xcode. Record the device, OS, build configuration, NovaContext revision and resolved NovaGraph revision. See [compatibility and validation](../../Guides/Compatibility.md).
 

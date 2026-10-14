@@ -199,3 +199,23 @@ private struct TemporaryMemory {
         await demo.close()
     }
 }
+
+@MainActor extension MemoryDemoTests {
+    @Test func modelAvailabilityCanRecoverWithoutLeavingTheScreen() async throws {
+        let temp = TemporaryMemory()
+        defer { temp.remove() }
+        let responder = CapturingResponder()
+        responder.availability = .unavailable("Preparing model")
+        let demo = MemoryDemo(directory: temp.database, responder: responder)
+        await demo.setActive(true).value
+        demo.question = "What should the cache use?"
+        #expect(!demo.canAsk)
+        responder.availability = .available
+        demo.checkModelAvailability()
+        #expect(demo.canAsk)
+        #expect(responder.prompts.isEmpty)
+        await demo.ask().value
+        #expect(responder.prompts.count == 1 && !demo.answer.isEmpty)
+        await demo.close()
+    }
+}

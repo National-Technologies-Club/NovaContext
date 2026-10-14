@@ -18,7 +18,7 @@ These deployment floors are declarations, not a claim that every OS/device combi
 ## Validation status
 
 - Core tests ran on an Apple Silicon Mac with Swift 6.4, Xcode 27.0 (27A266a) and macOS 27.0.1. The suite includes persistence, scope isolation, limits, context packing, cancellation and lifecycle errors. Debug and Release builds passed.
-- OnDeviceMemory passed nine integration tests on an iPhone 17 Pro simulator running iOS 26.5. These tests use real temporary databases and fake model/session boundaries; no actual LLM is required. The model-free launch/layout check and an unsigned iOS device build also passed.
+- OnDeviceMemory passed ten integration tests on 2026-10-14 on an iPhone 17 Pro simulator running iOS 26.5. These tests use real temporary databases and fake model/session boundaries; no actual LLM is required. The model-free launch/layout check and an unsigned iOS device build also passed.
 - On 2026-10-14, the owner reported installing and testing OnDeviceMemory successfully. Device, OS, configuration, revision, mode and individual test outcomes were not supplied. This useful manual result does not imply completed device qualification or a measured performance budget.
 - A complete recorded real-model device walkthrough, combined app/model memory observation and first-response latency observation remain open. Older declared deployment floors have not received a device test in this work.
 - The GitHub Actions workflow checks the core on `macos-15` and prints its actual Xcode/Swift versions. A hosted run can only be confirmed after the repository is published and the workflow executes.
