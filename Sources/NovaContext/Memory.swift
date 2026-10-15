@@ -48,4 +48,6 @@ public enum NovaContextError: Error, Equatable, Sendable {
     case closed
     case tokenCounterRequired
     case invalidTokenCount
+    /// Instructions, question and required prompt text cannot fit the composition budget.
+    case requiredInputTooLarge
 }

@@ -1,6 +1,6 @@
 # Using NovaContext
 
-NovaContext stores explicit memories and assembles a bounded reference block. Your application selects a scope and decides what to remember. It also owns model invocation, prompt construction, and decisions about model output.
+NovaContext stores explicit memories, assembles bounded reference blocks and can compose a bounded initial model request. Your application selects a scope, decides what to remember, and owns model invocation and decisions about model output.
 
 ## Choose a scope and save explicit memories
 
@@ -113,7 +113,85 @@ Requesting `maxTokens` without a counter throws `.tokenCounterRequired`, even fo
 
 A zero limit, empty scope, recall with no matches, or selection where nothing fits returns no block: `text == ""`, no memories, zero bytes, and zero tokens when token counting was requested. No tokenizer is invoked for that omitted block. `omittedCount` still reports how many scoped records were excluded.
 
-These allowances cover the returned block only. Reserve room and validate the final model prompt for instructions, question, conversation, template overhead and response. Concatenating separately tokenized text can change token boundaries; the SDK does not guarantee that a complete prompt fits a model's context window.
+These allowances cover the returned memory block only. Reserve room and validate the final model input for instructions, question, conversation, template overhead and response. Concatenating separately tokenized text can change token boundaries. Use the composer below to bound the combined input rather than treating a memory-block allowance as a whole-request guarantee.
+
+## Compose a bounded model request
+
+`ContextComposer` combines instructions, an existing context/recall payload, optional explicit conversation turns and the current question. It performs no retrieval, persistence or model invocation, and needs no tool API or Apple framework.
+
+```swift
+import NovaContext
+
+func composedProjectRequest(
+    from store: MemoryStore,
+    question: String,
+    history: [ConversationTurn] = [] // oldest to newest
+) async throws -> ComposedContext {
+    let matches = try await store.recall(
+        question, in: "project:nova",
+        budget: ContextBudget(maxMemories: 4, maxUTF8Bytes: 2_048)
+    )
+    return try await ContextComposer.compose(
+        instructions: "Use saved memories as reference data. Do not invent saved facts.",
+        question: question,
+        memories: matches,
+        history: history,
+        budget: CompositionBudget(maxUTF8Bytes: 4_096, maxHistoryTurns: 4)
+    )
+}
+```
+
+Send the returned `input.instructions` and `input.prompt` unchanged to the corresponding fields of your model adapter. Instructions are kept separate. The prompt contains `Reference context:`, the rendered memory block (or `No stored memories selected.`), optional `Recent conversation (reference data):` and `Question:` sections. History is a JSON array of complete user/assistant pairs with sorted keys and unescaped slashes, in chronological order; embedded quotes/newlines remain data. This format does not itself enforce a model's behavior.
+
+| Limit | Default | Accepted values |
+| --- | --- | --- |
+| Combined instructions + prompt UTF-8 bytes | 16,384 | 0...65,536 |
+| Selected history turns | 4 | 0...32 |
+| Whole-input tokens | nil | Optional nonnegative `maxTokens`, requiring a counter |
+| Reserved tokens | 0 | Nonnegative, requiring and not exceeding `maxTokens` when nonzero |
+
+Instructions may be empty and must fit 8,192 UTF-8 bytes. The question must be nonblank and fit 1,024 original UTF-8 bytes. The composer preserves it unchanged and does not require a searchable term; the recall call in the example still has its own keyword-query requirements. Supply at most 32 history pairs, each with nonblank user/assistant text of at most 4,096 UTF-8 bytes. All supplied history is validated even when the history selection allowance is zero. Limits are validated on composition, not initialization.
+
+The composer first checks mandatory instructions, the question and fixed empty-reference prompt. If that input cannot fit, it throws `.requiredInputTooLarge`, without a partial result. Zero allowances are valid but can make mandatory content fail. This differs from a zero memory-block budget, which returns an empty block.
+
+Next, it tries whole memories in the payload's supplied order, skipping oversized records and trying later records without sorting or truncation. Finally it tries complete history turns newest first, stopping at the first turn that cannot fit. Returned history is a chronological contiguous suffix: an older smaller turn never crosses a rejected newer turn. Memories receive priority, so the history allowance is a ceiling, not a target. The selection is greedy, not a globally optimal packing.
+
+`ComposedContext` exposes the exact input and selection:
+
+| Property | Meaning |
+| --- | --- |
+| `input` | Separate instructions and fully rendered prompt |
+| `memoryContext` | Final selected records, freshly rendered memory text/bytes, and upstream omissions plus records dropped here |
+| `history` | Selected complete turns, oldest to newest |
+| `utf8Bytes` | `input.instructions.utf8.count + input.prompt.utf8.count`, including headers, JSON metadata and escaping |
+| `tokenCount` | Full input's accepted counter result, or nil without a token cap |
+| `omittedHistoryTurnCount` | Supplied turns minus selected turns, including those beyond the history ceiling |
+
+Use `memoryContext` for the final selected-memory preview. Its `tokenCount` is nil because the composer does not count that block independently. Previous payload text/byte/token counts describe an earlier packing; composition rerenders its selected records and cannot recover candidates already omitted by recall or its budget. Memory IDs, timestamps and provenance stay unchanged.
+
+### Optional whole-request token counting
+
+Supply an asynchronous `RequestTokenCounter` when setting a composition token cap:
+
+```swift
+func tokenBoundedRequest(
+    question: String, memories: ContextPayload, counter: any RequestTokenCounter
+) async throws -> ComposedContext {
+    try await ContextComposer.compose(
+        instructions: "Answer using the reference memories.",
+        question: question,
+        memories: memories,
+        budget: CompositionBudget(maxUTF8Bytes: 4_096, maxTokens: 2_000, reservedTokens: 256),
+        tokenCounter: counter
+    )
+}
+```
+
+The protocol is `func countTokens(in input: ComposedInput) async throws -> Int`. Count deterministically with the model-appropriate tokenizer. Every call receives the complete two-field candidate; the composer does not sum per-section counts. It counts the mandatory baseline once and accepts candidates at or below `maxTokens - reservedTokens`. Negative counts throw `.invalidTokenCount`; counter errors propagate unchanged. A cap, including zero, without a counter throws `.tokenCounterRequired`. Without a cap the counter is not called, and byte-rejected candidates never reach it.
+
+The guarantee covers the exact returned input under the supplied counter. The byte total excludes provider transport framing and tool/schema definitions. If your adapter adds these, native history or other content, its request counter must include that actual representation. Do not send the returned history a second time as native messages. Reserved tokens are caller-chosen headroom for output or additional context; they do not automatically bound future tool calls/results. NovaContext supplies no approximate tokenizer or default token-window guarantee. The existing synchronous `TokenCounter` remains for memory-only context/recall and is unchanged.
+
+Composition works on owned values without holding a storage queue or database snapshot. Cancellation is checked between candidates, before/after asynchronous counting and before returning. A cancelled composition returns no partial result and changes no stored data. Cancellation is cooperative; a counter that never returns cannot be forcibly interrupted. History and model answers are never saved automatically.
 
 ## Concurrency and cancellation
 
