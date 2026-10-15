@@ -79,10 +79,30 @@ final class NovaStorage {
         let memories = try readScope(scope, request: request)
         let existing = memories.first { $0.id == draft.id }
         guard existing != nil || memories.count < 128 else { throw NovaContextError.scopeFull }
+        return try persist(draft, in: scope, createdAtMs: existing?.createdAtMs, request: request)
+    }
+
+    func update(id: UUID, in scope: String, text: String?, pinned: Bool?, request: GraphRequest) throws -> Memory? {
+        if let text { try Self.validateText(text) }
+        guard let existing = try readScope(scope, request: request).first(where: { $0.id == id }) else {
+            return nil
+        }
+        let updatedText = text ?? existing.text
+        let updatedPin = pinned ?? existing.pinned
+        guard !updatedText.utf8.elementsEqual(existing.text.utf8) || updatedPin != existing.pinned else {
+            return existing
+        }
+        let draft = MemoryDraft(id: id, text: updatedText, kind: existing.kind, origin: existing.origin,
+                                source: existing.source, pinned: updatedPin)
+        return try persist(draft, in: scope, createdAtMs: existing.createdAtMs, request: request)
+    }
+
+    /// Called only after validation/admission within the same serial storage operation.
+    private func persist(_ draft: MemoryDraft, in scope: String, createdAtMs: Int64?, request: GraphRequest) throws -> Memory {
         let now = clock()
         let memory = Memory(id: draft.id, scope: scope, text: draft.text, kind: draft.kind,
                             origin: draft.origin, source: draft.source, pinned: draft.pinned,
-                            createdAtMs: existing?.createdAtMs ?? now, updatedAtMs: now)
+                            createdAtMs: createdAtMs ?? now, updatedAtMs: now)
         try commit("""
             upsert node NCScope $scopeID set scope=$scope;
             upsert node NCMemory $nodeID set memoryID=$memoryID, scope=$scope, text=$text,
@@ -134,12 +154,16 @@ final class NovaStorage {
     }
 
     private static func validate(_ draft: MemoryDraft) throws {
-        guard !draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              draft.text.utf8.count <= 4_096 else {
-            throw NovaContextError.invalidArgument("Text must be nonblank and at most 4,096 UTF-8 bytes.")
-        }
+        try validateText(draft.text)
         guard (draft.source?.utf8.count ?? 0) <= 512 else {
             throw NovaContextError.invalidArgument("Source must be at most 512 UTF-8 bytes.")
+        }
+    }
+
+    private static func validateText(_ text: String) throws {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              text.utf8.count <= 4_096 else {
+            throw NovaContextError.invalidArgument("Text must be nonblank and at most 4,096 UTF-8 bytes.")
         }
     }
 

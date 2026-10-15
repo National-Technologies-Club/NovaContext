@@ -22,11 +22,7 @@ enum ContextBuilder {
         var tokens: Int? = budget.maxTokens == nil ? nil : 0
 
         if budget.maxMemories > 0 && budget.maxUTF8Bytes > 0 && budget.maxTokens != 0 {
-            let ranked = memories.sorted {
-                if $0.pinned != $1.pinned { return $0.pinned }
-                if $0.updatedAtMs != $1.updatedAtMs { return $0.updatedAtMs > $1.updatedAtMs }
-                return $0.id.uuidString.lowercased() < $1.id.uuidString.lowercased()
-            }
+            let ranked = memories.sorted(by: MemoryOrdering.precedes)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
 

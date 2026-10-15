@@ -57,9 +57,31 @@ func rememberDecision(at directory: URL) async throws {
 
 Keep the draft's UUID if you need to update or reconcile that record. Reopening the same directory returns previously committed memories. `remember` with the same UUID and scope replaces the entire payload, preserves `createdAtMs`, and updates `updatedAtMs`. Omitting a previous source or pin clears it. The same UUID can independently exist in another scope.
 
+## Inspect and edit memories
+
+`memories(in:)` returns every stored memory in the exact scope, including records omitted from context by its byte, token or record budget. It returns a coherent list of up to 128 records, ordered by pinned first, `updatedAtMs` descending and canonical UUID ascending. A missing scope returns `[]`; storage or validation failures throw instead of returning a partial list.
+
+This function takes an open store, lists its memories, edits the first record, pins it, then forgets it:
+
 ```swift
-// Given an open store and the ID returned by remember:
-try await store.forget(id: memoryID, in: "project:nova")
+import NovaContext
+
+func editPinAndForgetFirstMemory(in store: MemoryStore) async throws {
+    let scope = "project:nova"
+    let memories = try await store.memories(in: scope)
+    guard let first = memories.first else { return }
+    guard let edited = try await store.update(
+        id: first.id, in: scope, text: "Keep project data on device."
+    ) else { return } // Another operation may have forgotten it.
+    _ = try await store.update(id: edited.id, in: scope, pinned: true)
+    try await store.forget(id: edited.id, in: scope)
+}
+```
+
+`update(id:in:text:pinned:)` atomically changes only the supplied text and/or pinned state. Nil leaves that field unchanged; other fields, including creation time and model provenance, are preserved. Missing records return nil without being recreated. Unchanged text bytes and pinning cause no write or timestamp change. See the [controls contract](Guides/Usage.md#inspect-and-edit-stored-memories) for validation and concurrent updates.
+
+```swift
+// Given an open store:
 try await store.clear(scope: "project:nova")
 ```
 

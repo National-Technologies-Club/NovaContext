@@ -6,9 +6,34 @@ NovaContext stores explicit memories and assembles a bounded reference block. Yo
 
 A scope is an application-defined key such as `project:nova` or `conversation:123`. Every memory operation requires it. Scope identity preserves exact UTF-8 bytes and is case-sensitive; there is no automatic cross-scope retrieval or search.
 
-Use `MemoryDraft` with an explicit kind (`fact`, `message`, `toolResult`) and origin (`user`, `application`, `model`). Keep its UUID to replace or reconcile the record. A replacement updates the complete payload, preserving creation time. `forget(id:in:)` deletes one scoped record; `clear(scope:)` removes the scope and its memories. Both are durable and treat missing data as a successful no-op.
+Use `MemoryDraft` with an explicit kind (`fact`, `message`, `toolResult`) and origin (`user`, `application`, `model`). Keep its UUID to replace or reconcile the record. `remember` with the same UUID and scope replaces the complete payload, preserving creation time and updating `updatedAtMs`; omitted source or pinning values clear their previous values. The same UUID can independently exist in another scope. `forget(id:in:)` deletes one scoped record; `clear(scope:)` removes the scope and its memories. Both are durable and treat missing data as a successful no-op.
 
 The current scope capacity is 128 records, with text up to 4,096 UTF-8 bytes, scope up to 128 bytes, and source up to 512 bytes. Nothing is silently evicted at capacity. See the [README](../README.md) for installation, persistence and close examples.
+
+## Inspect and edit stored memories
+
+Use `memories(in:)` for an app's stored-memory list. It returns all records in one exact scope, independently of `ContextBudget` or token counting. Records too large for a context preview remain visible and editable. A valid empty or missing scope returns `[]`.
+
+The list comes from one coherent scoped read and contains at most 128 owned `Memory` values. Its order is pinned first, persisted `updatedAtMs` descending, then canonical UUID string ascending. Reading never promotes a memory. Storage limits, an overfull or malformed scope, and invalid scope membership fail the operation; the SDK never returns a partial list. The storage queue and snapshot are released before sorting the returned values.
+
+The [README controls example](../README.md#inspect-and-edit-memories) shows a complete async function that lists, edits, pins and forgets an existing memory. Use these APIs according to the intended change:
+
+| Operation | Behavior |
+| --- | --- |
+| `memories(in:)` | Return every stored record in the scope, without context selection |
+| `memory(id:in:)` | Return one scoped record, or nil when missing |
+| `update(id:in:text:pinned:)` | Change only text and/or pinning on an existing scoped record |
+| `remember(_:in:)` | Create or completely replace the scoped record from a `MemoryDraft` |
+
+Both update fields default to nil. A nil field stays unchanged, so `update(id: memoryID, in: scope, pinned: true)` preserves the current text and `update(id: memoryID, in: scope, text: newText)` preserves the current pin. Update always preserves UUID, scope, `createdAtMs`, kind, origin and source. Editing model-origin text leaves its origin as `.model`; it does not certify the content as a user-confirmed fact.
+
+Supplied text must contain a nonwhitespace character and fit within 4,096 UTF-8 bytes, just like `remember`. Invalid supplied text throws `.invalidArgument` even if the ID is missing. Accepted text bytes are preserved without trimming or normalization. Scope validation and exact UTF-8 scope identity are unchanged.
+
+A missing scoped record returns nil and creates no record or scope. This also applies after a completed `forget`; a stale editor cannot recreate the record through `update`. With both fields nil, update returns the existing record or nil. If supplied text is byte-identical and the pin is unchanged, update returns the current record without a write or timestamp change. Canonically equivalent strings with different UTF-8 bytes count as a text change. A changed record receives the normal current `updatedAtMs`.
+
+Lookup, field changes and commit are one operation on the serial storage queue. Concurrent text-only and pin-only updates preserve both changes. Updates to the same field follow queue order, and the last applied value wins; there is no optimistic conflict detection or revision token. Use `remember` deliberately when you want complete replacement rather than a targeted edit.
+
+Listing and updating follow the existing cancellation, storage-error and lifecycle contracts. Suspended or closed stores reject them. An update propagates native mutation errors and transaction context, including an unknown commit outcome; an acknowledged or ambiguous write is not replaced by a late cancellation failure. Reconcile the record after reopening before retrying an uncertain write, as described in the [README](../README.md#concurrency-errors-and-close).
 
 ## Assemble context
 

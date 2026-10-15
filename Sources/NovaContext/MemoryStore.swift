@@ -37,6 +37,32 @@ public final class MemoryStore: Sendable {
         }
     }
 
+    /// Returns every memory in a coherent scope snapshot, independently of context budgets.
+    /// Ordered by pinning, persisted update time descending, then canonical UUID ascending.
+    /// Empty scopes return an empty list; storage/resource failures are never partial success.
+    public func memories(in scope: String) async throws -> [Memory] {
+        try Task.checkCancellation()
+        let memories = try await storage.perform { owner, request in
+            try owner.requireOpen().readScope(scope, request: request)
+        }
+        try Task.checkCancellation()
+        let ordered = memories.sorted(by: MemoryOrdering.precedes)
+        try Task.checkCancellation()
+        return ordered
+    }
+
+    /// Atomically updates only text and/or pinning, preserving all other fields.
+    /// Nil fields remain unchanged. Missing IDs return nil and are never inserted.
+    /// Supplied text must meet the normal text limits even when the record is missing.
+    /// Byte-identical/no-op changes retain the current value without writing or advancing
+    /// its timestamp. Concurrent same-field changes follow storage queue order.
+    public func update(id: UUID, in scope: String, text: String? = nil,
+                       pinned: Bool? = nil) async throws -> Memory? {
+        try await storage.perform { owner, request in
+            try owner.requireOpen().update(id: id, in: scope, text: text, pinned: pinned, request: request)
+        }
+    }
+
     /// Removes a scoped record. A missing record is a successful no-op.
     public func forget(id: UUID, in scope: String) async throws {
         try await storage.perform { owner, request in
