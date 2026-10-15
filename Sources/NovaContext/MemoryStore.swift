@@ -94,6 +94,26 @@ public final class MemoryStore: Sendable {
         return try ContextBuilder.build(memories: memories, budget: budget, tokenCounter: tokenCounter)
     }
 
+    /// Searches text in one coherent scope snapshot using normalized whole terms.
+    /// Queries contain at least one letter/number and at most 1,024 original UTF-8 bytes.
+    /// Distinct matching terms rank first, then pinning, update time and canonical UUID.
+    /// Nonmatches are excluded; no matches returns empty context without a recent fallback.
+    /// Whole-record budgets apply, and omittedCount includes all unselected scoped records.
+    /// Ranking and token counting run after storage is released; this method performs no writes.
+    public func recall(_ query: String, in scope: String, budget: ContextBudget = .init(),
+                       tokenCounter: (any TokenCounter)? = nil) async throws -> ContextPayload {
+        try Task.checkCancellation()
+        let terms = try KeywordRecall.terms(in: query)
+        try ContextBuilder.validate(budget, tokenCounter: tokenCounter)
+        let memories = try await storage.perform { owner, request in
+            try owner.requireOpen().readScope(scope, request: request)
+        }
+        try Task.checkCancellation()
+        let ranked = try KeywordRecall.rank(memories, terms: terms)
+        return try ContextBuilder.pack(orderedMemories: ranked, totalScopeCount: memories.count,
+                                       budget: budget, tokenCounter: tokenCounter)
+    }
+
     /// Evicts eligible cached records without deleting memories. Requires an active store.
     public func trimMemory() async throws { try await storage.performLifecycle(.trim) }
 

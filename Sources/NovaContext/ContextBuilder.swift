@@ -15,6 +15,14 @@ enum ContextBuilder {
     static func build(memories: [Memory], budget: ContextBudget,
                       tokenCounter: (any TokenCounter)?) throws -> ContextPayload {
         try Task.checkCancellation()
+        return try pack(orderedMemories: memories.sorted(by: MemoryOrdering.precedes),
+                        totalScopeCount: memories.count, budget: budget, tokenCounter: tokenCounter)
+    }
+
+    /// Preserves caller ranking while accounting for every unselected scoped record.
+    static func pack(orderedMemories: [Memory], totalScopeCount: Int, budget: ContextBudget,
+                     tokenCounter: (any TokenCounter)?) throws -> ContextPayload {
+        try Task.checkCancellation()
         try validate(budget, tokenCounter: tokenCounter)
         var selected: [Memory] = []
         var text = ""
@@ -22,11 +30,10 @@ enum ContextBuilder {
         var tokens: Int? = budget.maxTokens == nil ? nil : 0
 
         if budget.maxMemories > 0 && budget.maxUTF8Bytes > 0 && budget.maxTokens != 0 {
-            let ranked = memories.sorted(by: MemoryOrdering.precedes)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
 
-            for memory in ranked {
+            for memory in orderedMemories {
                 try Task.checkCancellation()
                 if selected.count == budget.maxMemories { break }
                 let candidate = selected + [memory]
@@ -52,7 +59,7 @@ enum ContextBuilder {
         }
         try Task.checkCancellation()
         return ContextPayload(memories: selected, text: text, utf8Bytes: bytes,
-                              tokenCount: tokens, omittedCount: memories.count - selected.count)
+                              tokenCount: tokens, omittedCount: totalScopeCount - selected.count)
     }
 }
 

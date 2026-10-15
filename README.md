@@ -22,7 +22,7 @@ No NovaContext remote or release tag is published yet. The local package is the 
 
 The package uses Swift tools 6.0 and pins `GraphDBKit` from NovaGraph **1.0.0**. Declared deployment floors are iOS 16 and macOS 13. See [compatibility and validation](Guides/Compatibility.md) for the concrete toolchains, simulator checks and owner-reported sample result.
 
-## Remember and recall
+## Remember explicit memories
 
 Use a dedicated directory in your application's Application Support location. The SDK creates the database at that path; one store/process owns it at a time.
 
@@ -106,6 +106,28 @@ The defaults are **12 memories within 8 KiB**. Bytes include the header, metadat
 
 Read the [usage guide](Guides/Usage.md) for token integration, cancellation, empty-context behavior, and scope selection. Context assembly retrieves a coherent snapshot and releases the storage queue before tokenization.
 
+## Recall matching memories
+
+`recall(_:in:budget:tokenCounter:)` searches memory text in one exact scope and returns a `ContextPayload` using the same byte, record and optional token limits as `context`:
+
+```swift
+import NovaContext
+
+func recallProjectContext(from store: MemoryStore, query: String) async throws -> ContextPayload {
+    try await store.recall(
+        query,
+        in: "project:nova",
+        budget: ContextBudget(maxMemories: 8, maxUTF8Bytes: 4_096)
+    )
+}
+```
+
+Queries must fit within **1,024 UTF-8 bytes before normalization** and contain at least one searchable term; invalid queries throw `.invalidArgument`. Matching uses whole Unicode letter/number/combining-mark terms with case folding and canonical normalization. For example, `cache` matches `CACHE` but not `cacheable` or `caches`; composed and decomposed `café` match, while unaccented `cafe` does not. Source metadata is not searched, and stored values are unchanged.
+
+Memories matching any query term rank by the number of distinct terms matched, then by pinning, update time descending and canonical UUID ascending. Repeated words add no weight; an unrelated pinned memory is excluded. This is lexical matching without stemming, fuzzy/prefix matching or language-specific word segmentation.
+
+No matches returns an empty payload. The app can explicitly call `context` if it wants recent/pinned context as a fallback; recall never does so automatically. `omittedCount` is every scoped record minus the selected records, including nonmatches and matches that exceed the budget. Matching order is retained while packing, oversized records are skipped whole, and pinning never overrides a limit. See the [recall contract](Guides/Usage.md#recall-matching-memories) for exact normalization and empty-result behavior.
+
 ## On-device example and lifecycle
 
 The [SwiftUI example](Examples/OnDeviceMemory/README.md) lets you remember a decision, inspect the selected context, ask an on-device model, and explicitly forget or save an answer. It requires iOS 26+ for Foundation Models and includes a labelled model-free preview. The owner reports that the installed sample worked well. Detailed device/build information and memory/latency observations remain unrecorded; see [validation status](Guides/Compatibility.md#validation-status).
@@ -127,6 +149,7 @@ The host app forwards lifecycle events; the SDK imports neither SwiftUI nor UIKi
 | Memory text | 4,096 UTF-8 bytes |
 | Scope | 128 UTF-8 bytes |
 | Optional source description | 512 UTF-8 bytes |
+| Recall query, before normalization | 1,024 UTF-8 bytes |
 
 Scope and text must contain something other than whitespace. Accepted strings are preserved without trimming or normalization. Scope identity is case-sensitive and based on the exact UTF-8 bytes. At capacity, a new record throws `NovaContextError.scopeFull`; replacement and deletion remain available. Applications manage total retained data across scopes.
 

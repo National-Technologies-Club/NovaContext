@@ -7,6 +7,7 @@
 - Full coherent scoped memory lists in pin/update-time/UUID order, including records omitted from context budgets; read failures never return a partial list.
 - Atomic text/pin updates that preserve creation time and provenance, skip unchanged writes, and return nil without recreating missing records. Disjoint field edits are preserved, with queue order deciding same-field changes.
 - Deterministic bounded context assembly with whole-record selection, exact rendered byte accounting, caller-supplied token counts and omission reporting.
+- Scoped keyword recall over normalized, case-folded whole terms in memory text, ranked by distinct matched terms before pinning/recency/UUID. Queries are bounded to 1,024 original UTF-8 bytes; no matches return empty context without automatic fallback, and omissions include every unselected scoped record.
 - Serialized storage operations, cooperative cancellation, explicit trim/suspend/resume/close and observable failure outcomes.
 - A separate SwiftUI/Foundation Models example with model-free preview, fresh per-question sessions, inspected context and explicit model-memory saves.
 - Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
