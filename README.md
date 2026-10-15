@@ -130,7 +130,9 @@ No matches returns an empty payload. The app can explicitly call `context` if it
 
 ## On-device example and lifecycle
 
-The [SwiftUI example](Examples/OnDeviceMemory/README.md) lets you remember a decision, inspect the selected context, ask an on-device model, and explicitly forget or save an answer. It requires iOS 26+ for Foundation Models and includes a labelled model-free preview. The owner reports that the installed sample worked well. Detailed device/build information and memory/latency observations remain unrecorded; see [validation status](Guides/Compatibility.md#validation-status).
+The [SwiftUI example](Examples/OnDeviceMemory/README.md) shows the full **Stored memories** list with **Edit**, an **Edit memory** sheet with **Save/Cancel**, **Pin/Unpin**, **Forget**, and visible origin/source. It starts with **Recent / pinned preview**, then captures each submitted question for scoped keyword recall and labels **Context for submitted question** and **Answer to:** with that question. Editing the question field leaves those labels intact; a successful memory change clears the old answer and refreshes the list and current preview. No-match recall stays empty, with no automatic recent-memory fallback.
+
+The sample keeps its four-record/2,048-byte context and 1,024-byte question limits; a question also needs a searchable letter/number term. Memory controls work without an available model. Foundation Models requires iOS 26+, and the example includes a labelled model-free mode, fresh sessions, cancellation and explicit model-answer saves. The owner previously reported that the installed sample worked well; detailed device/build information and memory/latency observations remain unrecorded. See [validation status](Guides/Compatibility.md#validation-status) and the [walkthrough](Examples/OnDeviceMemory/README.md#walk-through-it).
 
 ```swift
 // Given an active store:
@@ -176,7 +178,7 @@ swift test
 swift build -c release
 ```
 
-Tests use real temporary Nova databases for persistence, replacement, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context tests cover deterministic ranking, complete rendered byte/token accounting, omissions, Unicode, scope isolation, and storage access during tokenization. Lifecycle tests cover suspension, failed transitions, cancellation forwarding, queue ordering and data preservation. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
+Tests use real temporary Nova databases for persistence, replacement, full scoped lists, targeted edits, deletion, scope isolation, concurrent capacity admission, UTF-8 validation, schema protection, and cancellation. Context and keyword-recall tests cover deterministic ranking, whole-term Unicode matching, complete rendered byte/token accounting, full-scope omissions, scope isolation, and storage access during tokenization. Lifecycle tests cover suspension, failed transitions, cancellation forwarding, queue ordering and data preservation. A small internal mutation seam verifies error/receipt handling, including both possible outcomes of an ambiguous write; it is not a simulated power-loss qualification of Nova.
 
 A macOS [CI workflow](.github/workflows/ci.yml) runs the three build/test commands above for pushes and pull requests. Hosted checks cover the core package without requiring Apple Intelligence. The sample's simulator tests are run separately as described in its README.
 

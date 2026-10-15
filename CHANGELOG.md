@@ -9,7 +9,7 @@
 - Deterministic bounded context assembly with whole-record selection, exact rendered byte accounting, caller-supplied token counts and omission reporting.
 - Scoped keyword recall over normalized, case-folded whole terms in memory text, ranked by distinct matched terms before pinning/recency/UUID. Queries are bounded to 1,024 original UTF-8 bytes; no matches return empty context without automatic fallback, and omissions include every unselected scoped record.
 - Serialized storage operations, cooperative cancellation, explicit trim/suspend/resume/close and observable failure outcomes.
-- A separate SwiftUI/Foundation Models example with model-free preview, fresh per-question sessions, inspected context and explicit model-memory saves.
+- A separate SwiftUI/Foundation Models example with a full editable stored-memory list, pin controls and visible provenance; captured-question keyword recall and exact context/answer labels; and answer invalidation after memory changes. Model-free preview, fresh sessions, cancellation, lifecycle handling and explicit model-memory saves remain available.
 - Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
 
 The owner reports a successful installed-sample test; a detailed physical-device qualification record remains incomplete. This candidate is local and has no published NovaContext remote, release tag or production certification.

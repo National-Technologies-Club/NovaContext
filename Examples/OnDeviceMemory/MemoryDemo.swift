@@ -5,8 +5,12 @@ import NovaContext
 
 @MainActor @Observable final class MemoryDemo {
     static let scope = "project:demo"
+    private static let contextBudget = ContextBudget(maxMemories: 4, maxUTF8Bytes: 2_048)
     var decision = ""
     var question = ""
+    private(set) var memories: [Memory] = []
+    private(set) var contextQuestion: String?
+    private(set) var answerQuestion: String?
     private(set) var context: ContextPayload?
     private(set) var answer = ""
     private(set) var memoryError: String?
@@ -64,6 +68,7 @@ import NovaContext
         do {
             _ = try await store.remember(.init(text: text, kind: .fact, origin: .user), in: Self.scope)
             if decision == text { decision = "" }
+            invalidateAnswer()
             try await refresh(from: store)
             memoryError = nil
         } catch { memoryError = error.localizedDescription }
@@ -76,6 +81,7 @@ import NovaContext
         do {
             _ = try await store.remember(.init(text: answer, kind: .message, origin: .model,
                                                source: "Explicitly saved model response"), in: Self.scope)
+            invalidateAnswer()
             try await refresh(from: store)
             memoryError = nil
         } catch { memoryError = error.localizedDescription }
@@ -87,10 +93,21 @@ import NovaContext
         defer { isWorking = false }
         do {
             try await store.forget(id: id, in: Self.scope)
-            // A displayed answer may reference the forgotten memory; do not present it as current.
-            answer = ""
+            invalidateAnswer()
             try await refresh(from: store)
             memoryError = nil
+        } catch { memoryError = error.localizedDescription }
+    }
+
+    func updateMemory(_ id: UUID, text: String? = nil, pinned: Bool? = nil) async {
+        guard canEdit, let store else { return }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let updated = try await store.update(id: id, in: Self.scope, text: text, pinned: pinned)
+            invalidateAnswer()
+            try await refresh(from: store)
+            memoryError = updated == nil ? "This memory no longer exists. The list has been refreshed." : nil
         } catch { memoryError = error.localizedDescription }
     }
 
@@ -100,7 +117,7 @@ import NovaContext
         defer { isWorking = false }
         do {
             try await store.clear(scope: Self.scope)
-            answer = ""
+            invalidateAnswer()
             try await refresh(from: store)
             memoryError = nil
         } catch { memoryError = error.localizedDescription }
@@ -147,20 +164,21 @@ import NovaContext
             return Task {}
         }
         isGenerating = true
-        answer = ""
-        modelError = nil
+        invalidateAnswer()
+        context = nil
         let task = Task {
             defer { isGenerating = false }
             do {
-                let selected = try await store.context(in: Self.scope,
-                    budget: ContextBudget(maxMemories: 4, maxUTF8Bytes: 2_048))
+                let selected = try await store.recall(question, in: Self.scope, budget: Self.contextBudget)
                 try Task.checkCancellation()
                 context = selected
+                contextQuestion = question
                 let reference = selected.text.isEmpty ? "No stored memories selected." : selected.text
                 let prompt = "Reference context:\n" + reference + "\n\nQuestion:\n" + question
                 let response = try await responder.respond(to: prompt)
                 try Task.checkCancellation()
                 answer = response
+                answerQuestion = question
             } catch {
                 modelError = Task.isCancelled ? "Generation cancelled. Stored memories are unchanged." : error.localizedDescription
             }
@@ -173,15 +191,38 @@ import NovaContext
 
     func cancelGeneration() { generationTask?.cancel() }
 
+    private func invalidateAnswer() {
+        answer = ""
+        answerQuestion = nil
+        modelError = nil
+    }
+
     private func refresh(from store: MemoryStore) async throws {
-        context = try await store.context(in: Self.scope,
-            budget: ContextBudget(maxMemories: 4, maxUTF8Bytes: 2_048))
+        do {
+            let all = try await store.memories(in: Self.scope)
+            let selected: ContextPayload
+            if let query = contextQuestion {
+                selected = try await store.recall(query, in: Self.scope, budget: Self.contextBudget)
+            } else {
+                selected = try await store.context(in: Self.scope, budget: Self.contextBudget)
+            }
+            if context != selected { invalidateAnswer() }
+            memories = all
+            context = selected
+        } catch {
+            // A failed refresh must not present old data or answers as the current state.
+            memories = []
+            context = nil
+            invalidateAnswer()
+            throw error
+        }
     }
 }
 
 struct MemoryDemoView: View {
     @State var model: MemoryDemo
     @State private var confirmsClear = false
+    @State private var editingMemory: Memory?
     let modelFree: Bool
     @Environment(\.scenePhase) private var scenePhase
 
@@ -190,7 +231,7 @@ struct MemoryDemoView: View {
             Form {
                 Section {
                     Label(modelFree ? "Model-free preview" : "On-device memory", systemImage: "brain")
-                    Text("Save a project decision, inspect the selected context, then ask a question.")
+                    Text("Manage saved memories, then ask a question to select matching context.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     if case .unavailable(let reason) = model.availability {
                         Text(reason).foregroundStyle(.secondary)
@@ -206,26 +247,45 @@ struct MemoryDemoView: View {
                         .disabled(!model.canEdit)
                         .accessibilityIdentifier("remember")
                 }
-                Section("Selected memories") {
-                    if let context = model.context {
-                        ForEach(context.memories) { memory in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(memory.text)
-                                HStack {
-                                    Text(memory.origin.rawValue).font(.caption).foregroundStyle(.secondary)
-                                    Spacer()
-                                    Button("Forget", role: .destructive) { Task { await model.forget(memory.id) } }
-                                        .buttonStyle(.borderless).disabled(!model.canEdit)
-                                }
+                Section("Stored memories") {
+                    ForEach(model.memories) { memory in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(memory.text).lineLimit(4)
+                            Text("\(memory.kind.rawValue) · \(memory.origin.rawValue)\(memory.pinned ? " · pinned" : "")")
+                                .font(.caption).foregroundStyle(.secondary)
+                            if let source = memory.source {
+                                Text(source).font(.caption).foregroundStyle(.secondary)
                             }
+                            HStack {
+                                Button("Edit") { editingMemory = memory }
+                                    .accessibilityIdentifier("edit-\(memory.id)")
+                                Button(memory.pinned ? "Unpin" : "Pin") {
+                                    Task { await model.updateMemory(memory.id, pinned: !memory.pinned) }
+                                }
+                                Spacer()
+                                Button("Forget", role: .destructive) { Task { await model.forget(memory.id) } }
+                            }
+                            .buttonStyle(.borderless).disabled(!model.canEdit)
+                        }
+                    }
+                    Text("\(model.memories.count) stored in this project. Context limits do not hide records from this list.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section(model.contextQuestion == nil ? "Recent / pinned preview" : "Context for submitted question") {
+                    if let context = model.context {
+                        if let query = model.contextQuestion {
+                            Text("Question: \(query)").accessibilityIdentifier("context-question")
+                        } else {
+                            Text("Preview only. Submit a question to select matching memories.")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         Text("\(context.memories.count) selected · \(context.omittedCount) omitted · \(context.utf8Bytes) bytes")
                             .font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup("Exact context sent to the model") {
+                        DisclosureGroup(model.contextQuestion == nil ? "Exact preview context" : "Exact reference context") {
                             Text(context.text.isEmpty ? "No stored memories selected." : context.text)
                                 .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                         }
-                    } else { Text("Open the store to load context.").foregroundStyle(.secondary) }
+                    } else { Text("No context preview available.").foregroundStyle(.secondary) }
                 }
                 Section("Ask about your project") {
                     TextField("What should the cache use?", text: $model.question, axis: .vertical)
@@ -237,6 +297,10 @@ struct MemoryDemoView: View {
                     }
                     if let error = model.modelError { Text(error).foregroundStyle(.red) }
                     if !model.answer.isEmpty {
+                        if let question = model.answerQuestion {
+                            Text("Answer to: \(question)").font(.caption).foregroundStyle(.secondary)
+                                .accessibilityIdentifier("answer-question")
+                        }
                         Text(model.answer).textSelection(.enabled).accessibilityIdentifier("answer")
                         if !modelFree {
                             Button("Save answer as model memory") { Task { await model.saveAnswer() } }
@@ -256,15 +320,60 @@ struct MemoryDemoView: View {
                         .confirmationDialog("Clear all project memories, including omitted records?", isPresented: $confirmsClear) {
                             Button("Clear project memories", role: .destructive) { Task { await model.clearProject() } }
                         }
-                    Text("4 records · 2 KiB context · 1 KiB question. These are byte limits, not a model token-window guarantee.")
+                    Text("4 records · 2 KiB context · 1 KiB question with a searchable term. These are byte limits, not a model token-window guarantee.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("NovaContext")
+            .sheet(item: $editingMemory) { memory in
+                MemoryEditorView(model: model, memory: memory)
+            }
             .onChange(of: scenePhase, initial: true) { _, phase in
                 if phase == .active { model.setActive(true) }
                 if phase == .background { model.setActive(false) }
             }
+        }
+    }
+}
+
+private struct MemoryEditorView: View {
+    let model: MemoryDemo
+    let memory: Memory
+    @State private var text: String
+    @Environment(\.dismiss) private var dismiss
+
+    init(model: MemoryDemo, memory: Memory) {
+        self.model = model
+        self.memory = memory
+        _text = State(initialValue: memory.text)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Memory text") {
+                    TextEditor(text: $text).frame(minHeight: 160).accessibilityIdentifier("memory-editor")
+                    Text("\(memory.kind.rawValue) · \(memory.origin.rawValue)")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let source = memory.source { Text(source).font(.caption).foregroundStyle(.secondary) }
+                }
+                if let error = model.memoryError { Text(error).foregroundStyle(.red) }
+            }
+            .navigationTitle("Edit memory")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.disabled(model.isWorking)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task {
+                            await model.updateMemory(memory.id, text: text)
+                            if model.memoryError == nil { dismiss() }
+                        }
+                    }.disabled(!model.canEdit)
+                }
+            }
+            .interactiveDismissDisabled(model.isWorking)
         }
     }
 }

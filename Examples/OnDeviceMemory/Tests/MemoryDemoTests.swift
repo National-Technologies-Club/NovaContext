@@ -84,12 +84,12 @@ private struct TemporaryMemory {
         let responder = CapturingResponder()
         let demo = MemoryDemo(directory: temp.database, responder: responder)
         await demo.setActive(true).value
-        for question in ["  ", String(repeating: "😀", count: 257)] {
+        for question in ["  ", String(repeating: "😀", count: 257), "!?😀"] {
             demo.question = question
             await demo.ask().value
             #expect(responder.prompts.isEmpty && demo.modelError != nil)
         }
-        demo.question = String(repeating: "😀", count: 256)
+        demo.question = "cache" + String(repeating: " ", count: 1_019)
         await demo.ask().value
         #expect(responder.prompts.count == 1 && demo.modelError == nil)
         await demo.close()
@@ -104,8 +104,9 @@ private struct TemporaryMemory {
         await demo.ask().value
         #expect(demo.context?.memories.isEmpty == true)
         await demo.saveAnswer()
-        #expect(demo.context?.memories.first?.origin == .model)
-        #expect(demo.context?.memories.first?.text == "Use SQLite for the cache.")
+        #expect(demo.memories.first?.origin == .model)
+        #expect(demo.memories.first?.text == "Use SQLite for the cache.")
+        #expect(demo.context?.memories.isEmpty == true)
         await demo.close()
     }
 
@@ -128,11 +129,11 @@ private struct TemporaryMemory {
         await first.value
         #expect(responder.prompts.count == 1 && demo.answer.isEmpty && !demo.isGenerating)
         await demo.trim()
-        #expect(demo.context?.memories.first?.text == "Keep this")
+        #expect(demo.memories.first?.text == "Keep this")
         await demo.setActive(false).value
         #expect(!demo.isReady)
         await demo.setActive(true).value
-        #expect(demo.context?.memories.first?.text == "Keep this")
+        #expect(demo.memories.first?.text == "Keep this")
         await demo.close()
     }
 
@@ -216,6 +217,121 @@ private struct TemporaryMemory {
         #expect(responder.prompts.isEmpty)
         await demo.ask().value
         #expect(responder.prompts.count == 1 && !demo.answer.isEmpty)
+        await demo.close()
+    }
+}
+
+@MainActor extension MemoryDemoTests {
+    @Test func controlsReachMemoriesOmittedFromPreview() async throws {
+        let temp = TemporaryMemory()
+        defer { temp.remove() }
+        let seed = try await MemoryStore.open(at: temp.database)
+        let saved = try await seed.remember(.init(text: String(repeating: "x", count: 3_000),
+            kind: .toolResult, origin: .model, source: "Explicitly saved tool result"), in: MemoryDemo.scope)
+        try await seed.close()
+        let responder = CapturingResponder()
+        responder.availability = .unavailable("No model")
+        let demo = MemoryDemo(directory: temp.database, responder: responder)
+        await demo.setActive(true).value
+        #expect(demo.canEdit && !demo.canAsk)
+        #expect(demo.memories == [saved])
+        #expect(demo.context?.memories.isEmpty == true && demo.context?.omittedCount == 1)
+        await demo.updateMemory(saved.id, text: "Use SQLite for cache")
+        await demo.updateMemory(saved.id, pinned: true)
+        let edited = try #require(demo.memories.first)
+        #expect(edited.id == saved.id && edited.createdAtMs == saved.createdAtMs)
+        #expect(edited.kind == .toolResult && edited.origin == .model && edited.source == saved.source)
+        #expect(edited.text == "Use SQLite for cache" && edited.pinned)
+        #expect(demo.context?.memories == [edited] && demo.contextQuestion == nil)
+        await demo.close()
+        await demo.setActive(true).value
+        #expect(demo.memories == [edited])
+        await demo.updateMemory(saved.id, pinned: false)
+        #expect(demo.memories.first?.pinned == false)
+        await demo.forget(saved.id)
+        #expect(demo.memories.isEmpty && demo.context?.omittedCount == 0)
+        #expect(responder.prompts.isEmpty && demo.memoryError == nil)
+        await demo.close()
+        let reopened = try await MemoryStore.open(at: temp.database)
+        #expect(try await reopened.memories(in: MemoryDemo.scope).isEmpty)
+        try await reopened.close()
+    }
+
+    @Test func missingEditedRecordIsNotResurrected() async throws {
+        let temp = TemporaryMemory()
+        defer { temp.remove() }
+        let demo = MemoryDemo(directory: temp.database, responder: CapturingResponder())
+        await demo.setActive(true).value
+        demo.decision = "Original text"
+        await demo.rememberDecision()
+        let editing = try #require(demo.memories.first)
+        await demo.forget(editing.id)
+        await demo.updateMemory(editing.id, text: "Stale editor content")
+        #expect(demo.memories.isEmpty && demo.context?.omittedCount == 0)
+        #expect(demo.memoryError != nil)
+        await demo.close()
+        let reopened = try await MemoryStore.open(at: temp.database)
+        #expect(try await reopened.memory(id: editing.id, in: MemoryDemo.scope) == nil)
+        try await reopened.close()
+    }
+
+    @Test func questionAndPromptStayAssociated() async throws {
+        let temp = TemporaryMemory()
+        defer { temp.remove() }
+        let seed = try await MemoryStore.open(at: temp.database)
+        let relevant = try await seed.remember(.init(text: "Use SQLite for cache", kind: .fact,
+            origin: .user), in: MemoryDemo.scope)
+        for i in 1...4 {
+            _ = try await seed.remember(.init(text: "Unrelated decision \(i)", kind: .fact,
+                origin: .user, pinned: true), in: MemoryDemo.scope)
+        }
+        _ = try await seed.remember(.init(text: "Foreign cache sqlite secret", kind: .fact,
+            origin: .user), in: "foreign")
+        try await seed.close()
+        let responder = CapturingResponder()
+        var pending: CheckedContinuation<String, Never>?
+        responder.operation = { _ in await withCheckedContinuation { pending = $0 } }
+        defer { pending?.resume(returning: "Cleanup") }
+        let demo = MemoryDemo(directory: temp.database, responder: responder)
+        await demo.setActive(true).value
+        #expect(demo.memories.count == 5 && demo.context?.memories.count == 4)
+        #expect(demo.context?.memories.contains { $0.id == relevant.id } == false)
+        #expect(demo.contextQuestion == nil)
+        demo.question = "cache sqlite"
+        let generation = demo.ask()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while responder.prompts.isEmpty && ContinuousClock.now < deadline { await Task.yield() }
+        try #require(responder.prompts.count == 1)
+        let selected = try #require(demo.context)
+        #expect(selected.memories.map(\.id) == [relevant.id])
+        #expect(selected.omittedCount == 4 && selected.utf8Bytes <= 2_048)
+        #expect(responder.prompts[0] == "Reference context:\n" + selected.text + "\n\nQuestion:\ncache sqlite")
+        #expect(!responder.prompts[0].contains("Foreign") && !responder.prompts[0].contains("Unrelated"))
+        demo.question = "Different input"
+        #expect(demo.contextQuestion == "cache sqlite")
+        pending?.resume(returning: "SQLite answer")
+        pending = nil
+        await generation.value
+        #expect(demo.answer == "SQLite answer" && demo.answerQuestion == "cache sqlite")
+        #expect(demo.contextQuestion == "cache sqlite" && demo.question == "Different input")
+        // Refresh after editing retains the submitted query, not the text field's new value.
+        await demo.updateMemory(relevant.id, text: "Use PostgreSQL for storage")
+        #expect(demo.answer.isEmpty && demo.answerQuestion == nil)
+        #expect(demo.context?.memories.isEmpty == true && demo.context?.omittedCount == 5)
+        #expect(demo.contextQuestion == "cache sqlite")
+        responder.operation = { _ in "PostgreSQL answer" }
+        demo.question = "PostgreSQL"
+        await demo.ask().value
+        #expect(demo.context?.memories.map(\.id) == [relevant.id] && !demo.answer.isEmpty)
+        await demo.updateMemory(relevant.id, pinned: true)
+        #expect(demo.answer.isEmpty && demo.answerQuestion == nil)
+        await demo.ask().value
+        #expect(!demo.answer.isEmpty)
+        await demo.forget(relevant.id)
+        #expect(demo.answer.isEmpty && demo.context?.memories.isEmpty == true)
+        await demo.ask().value
+        #expect(responder.prompts.last == "Reference context:\nNo stored memories selected.\n\nQuestion:\nPostgreSQL")
+        #expect(demo.contextQuestion == "PostgreSQL" && demo.answerQuestion == "PostgreSQL")
         await demo.close()
     }
 }

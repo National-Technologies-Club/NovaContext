@@ -124,6 +124,14 @@ Cancellation is checked before and after storage retrieval, during keyword scann
 Close the store explicitly to observe storage errors. Suspended and closed stores reject new context and recall requests. Both APIs leave memory content unchanged; pinning and provenance do not make model-generated claims authoritative. See the lifecycle contract below and the [on-device example](../Examples/OnDeviceMemory/README.md).
 
 
+## Sample integration
+
+The [OnDeviceMemory example](../Examples/OnDeviceMemory/README.md) keeps its full `memories(in:)` list independent of selected context. Its **Stored memories** section exposes Edit with Save/Cancel, Pin/Unpin and Forget even for a record too large for the preview. Origin and optional source stay visible. Edits use targeted updates; a missing record is reported as stale and refreshed without recreating it.
+
+Before the first question, the example shows **Recent / pinned preview** with **Exact preview context**, using `context`. Ask captures the submitted question and uses `recall` with four-record and 2,048-byte allowances, then shows **Context for submitted question**, **Question:**, **Exact reference context** and **Answer to:** for that captured question. Changing the question field alone leaves those labels unchanged. Successful memory changes refresh the full list and either the initial preview or recall for the last submitted question, and invalidate any answer based on the earlier memory state.
+
+Questions must fit within 1,024 original UTF-8 bytes and contain a searchable letter/number term; punctuation/emoji-only input is rejected. No-match recall remains empty without a recent-memory fallback. Memory controls remain usable when the model is unavailable. Generation retains fresh sessions, cancellation and explicit saves with origin `.model`; editing saved output preserves that provenance.
+
 ## Lifecycle
 
 ```swift
