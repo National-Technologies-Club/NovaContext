@@ -69,6 +69,8 @@ On 2026-10-14, all 13 sample integration tests in one suite passed with Xcode 27
 
 On 2026-10-17, all **15 sample integration tests** in one suite passed with Xcode 27.0 (27A266a), Debug, on that iPhone 17 Pro / iOS 26.5 simulator. Swift Testing reported 1.127 seconds and `xcodebuild` reported `TEST SUCCEEDED`. This run adds the bounded composition integration, exact request preview/forwarding, edit/delete recomposition and failed-refresh cleanup. The core package suite also passed all **82 tests across six suites**. These tests use fake responders and do not qualify actual model generation on a physical device.
 
+A separate, temporary model-free UI test passed on 2026-10-17 using a disposable iPhone 17 Pro / iOS 26.5 simulator: **one test, zero failures, 48.027 seconds**. It covered Remember, Ask, separate exact instructions/prompt and combined byte count, submitted-question identity after changing the input field, Edit/Save recomposition and Forget. The walkthrough did not call an LLM and adds no permanent UI-test target to the sample.
+
 The remaining detailed record is the walkthrough above on an eligible iPhone with real generation, plus one observation of combined app/model memory and first-response latency in Xcode. Record the device, OS, build configuration, NovaContext revision and resolved NovaGraph revision. See [compatibility and validation](../../Guides/Compatibility.md).
 
 API references: [SystemLanguageModel](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel), [LanguageModelSession](https://developer.apple.com/documentation/foundationmodels/languagemodelsession).

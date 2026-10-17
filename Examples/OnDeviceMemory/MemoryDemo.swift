@@ -319,7 +319,6 @@ struct MemoryDemoView: View {
                                     .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                                     .accessibilityIdentifier("composed-prompt")
                             }
-                            .accessibilityIdentifier("exact-model-request")
                         }
                     } else { Text("No context preview available.").foregroundStyle(.secondary) }
                 }
