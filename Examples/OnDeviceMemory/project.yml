@@ -20,6 +20,7 @@ targets:
       - OnDeviceMemoryApp.swift
       - MemoryDemo.swift
       - LocalResponder.swift
+      - ProjectNotesSearch.swift
     dependencies:
       - package: NovaContext
     settings:
