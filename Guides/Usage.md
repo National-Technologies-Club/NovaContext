@@ -208,6 +208,8 @@ The [OnDeviceMemory example](../Examples/OnDeviceMemory/README.md) keeps its ful
 
 Before the first question, the example shows **Recent / pinned preview** with **Exact preview context**, using `context`. Ask captures the submitted question and uses `recall` with four-record and 2,048-byte allowances, then shows **Context for submitted question**, **Question:**, **Exact reference context** and **Answer to:** for that captured question. Changing the question field alone leaves those labels unchanged. Successful memory changes refresh the full list and either the initial preview or recall for the last submitted question, and invalidate any answer based on the earlier memory state.
 
+After recall, the sample uses `ContextComposer` with its fixed instructions, captured question, history `[]` and a 4,096-byte combined request budget. **Exact model request** shows the exact separate instructions/prompt and byte count; the selected-memory preview uses the final `memoryContext`. The responder forwards those fields unchanged to a fresh model session. Memory changes recompose the current submitted query without invoking the model, and a failed refresh clears stale composition/context/answer data. The sample uses byte-only composition with no token estimate.
+
 Questions must fit within 1,024 original UTF-8 bytes and contain a searchable letter/number term; punctuation/emoji-only input is rejected. No-match recall remains empty without a recent-memory fallback. Memory controls remain usable when the model is unavailable. Generation retains fresh sessions, cancellation and explicit saves with origin `.model`; editing saved output preserves that provenance.
 
 ## Lifecycle
