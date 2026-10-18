@@ -4,7 +4,7 @@ import NovaContext
 
 @MainActor protocol LocalResponder {
     var availability: ModelAvailability { get }
-    func respond(to input: ComposedInput) async throws -> String
+    func respond(to input: ComposedInput, search: ProjectNotesSearch) async throws -> String
 }
 
 enum ModelAvailability: Equatable {
@@ -30,22 +30,24 @@ enum DemoError: Error, Equatable, LocalizedError {
 
 @MainActor final class AppleResponder: LocalResponder {
     private let checkAvailability: @MainActor () -> ModelAvailability
-    private let makeSession: @MainActor (String) -> any ResponseSession
+    private let makeSession: @MainActor (String, ProjectNotesSearch) -> any ResponseSession
     private var isResponding = false
     var availability: ModelAvailability { checkAvailability() }
     init(availability: @escaping @MainActor () -> ModelAvailability = AppleResponder.systemAvailability,
-         makeSession: @escaping @MainActor (String) -> any ResponseSession = { AppleSession(instructions: $0) }) {
+         makeSession: @escaping @MainActor (String, ProjectNotesSearch) -> any ResponseSession = {
+             AppleSession(instructions: $0, search: $1)
+         }) {
         self.checkAvailability = availability
         self.makeSession = makeSession
     }
-    func respond(to input: ComposedInput) async throws -> String {
+    func respond(to input: ComposedInput, search: ProjectNotesSearch) async throws -> String {
         guard !isResponding else { throw DemoError.generationInProgress }
         guard availability == .available else { throw DemoError.unavailable }
         try Task.checkCancellation()
         isResponding = true
         defer { isResponding = false }
         // A new session per question prevents a hidden, ever-growing transcript.
-        let session = makeSession(input.instructions)
+        let session = makeSession(input.instructions, search)
         do {
             let answer = try await session.respond(to: input.prompt)
             try Task.checkCancellation()
@@ -79,8 +81,9 @@ enum DemoError: Error, Equatable, LocalizedError {
 
 @MainActor private final class AppleSession: ResponseSession {
     private let session: LanguageModelSession
-    init(instructions: String) {
-        session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+    init(instructions: String, search: ProjectNotesSearch) {
+        session = LanguageModelSession(model: SystemLanguageModel.default,
+            tools: [SearchProjectNotes(search: search)], instructions: instructions)
     }
     func respond(to prompt: String) async throws -> String {
         try await session.respond(to: prompt, options: GenerationOptions(maximumResponseTokens: 256)).content
@@ -90,8 +93,8 @@ enum DemoError: Error, Equatable, LocalizedError {
 /// An explicit UI preview mode; it never calls a model or pretends to infer an answer.
 @MainActor final class PreviewResponder: LocalResponder {
     var availability: ModelAvailability { .available }
-    func respond(to input: ComposedInput) async throws -> String {
+    func respond(to input: ComposedInput, search: ProjectNotesSearch) async throws -> String {
         try Task.checkCancellation()
-        return "Model-free preview. No language model was called. Inspect the exact request above."
+        return "Model-free preview. No model or tools were called. Inspect the composed input above."
     }
 }
