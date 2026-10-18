@@ -11,6 +11,7 @@
 - Whole-request composition with separate instructions/prompt, mandatory-content fit checks, supplied memory ranking and a contiguous suffix of explicit recent history. Combined byte limits and optional asynchronous request-token counting include the complete candidate input, with explicit reservation and omission reporting.
 - Serialized storage operations, cooperative cancellation, explicit trim/suspend/resume/close and observable failure outcomes.
 - A separate SwiftUI/Foundation Models example with a full editable stored-memory list, pin controls and visible provenance; captured-question recall, exact composed instructions/prompt and combined byte count; and answer invalidation plus recomposition after memory changes. Model-free preview, fresh sessions, cancellation, lifecycle handling and explicit model-memory saves remain available.
+- A sample-only read-only `search_project_notes` tool, fixed to the host project scope with two attempts per question and bounded queries/whole results. Separate composed-input and completed-search displays retain captured-question identity; results stay ephemeral, and lifecycle invalidation prevents stale publication. No public tool/plugin API is introduced.
 - Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
 
 The owner reports a successful installed-sample test; a detailed physical-device qualification record remains incomplete. This candidate is local and has no published NovaContext remote, release tag or production certification.
