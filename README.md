@@ -6,21 +6,31 @@ NovaContext provides durable memory storage and deterministic context assembly w
 
 ## Installation
 
-Add this directory as a **local Swift package** in Xcode, or use a sibling package dependency:
+The first **v0.1.0** release is being prepared. The intended repository is `rhindsntc/NovaContext`; its repository and tag are not published yet. Use a local package until publication is complete.
+
+### Swift Package Manager
+
+After the `v0.1.0` tag is published, add this versioned dependency:
 
 ```swift
-.package(path: "../NovaContext")
+.package(url: "https://github.com/rhindsntc/NovaContext.git", exact: "0.1.0")
 ```
 
-Add the product to your target:
+In Xcode, use **File → Add Package Dependencies**, enter that repository URL and select version **0.1.0**. Add the library product to your application target:
 
 ```swift
 .product(name: "NovaContext", package: "novacontext")
 ```
 
-No NovaContext remote or release tag is published yet. The local package is the current installation path.
+### Local development
 
-The package uses Swift tools 6.0 and pins `GraphDBKit` from NovaGraph **1.0.0**. Declared deployment floors are iOS 16 and macOS 13. See [compatibility and validation](Guides/Compatibility.md) for the concrete toolchains, simulator checks and owner-reported sample result.
+For now, add the NovaContext directory as a local Swift package in Xcode, or use a sibling package dependency:
+
+```swift
+.package(path: "../NovaContext")
+```
+
+The package uses Swift tools 6.0 and pins `GraphDBKit` from NovaGraph **1.0.0**. Declared deployment floors are iOS 16 and macOS 13. The separate Foundation Models sample requires Xcode 26+ and iOS 26+. See [compatibility and validation](Guides/Compatibility.md) for tested configurations and the pending physical-device checks.
 
 ## Remember explicit memories
 
@@ -233,4 +243,12 @@ Tests use real temporary Nova databases for persistence, replacement, full scope
 
 A macOS [CI workflow](.github/workflows/ci.yml) runs the three build/test commands above for pushes and pull requests. Hosted checks cover the core package without requiring Apple Intelligence. The sample's simulator tests are run separately as described in its README.
 
-Persistent storage, bounded reference/request composition, lifecycle helpers and the separate on-device example form the v0.1 candidate. Read the [changelog](CHANGELOG.md) and [compatibility guide](Guides/Compatibility.md) before integrating. The core package includes no model runtime, semantic search or automatic summarization.
+Persistent storage, bounded reference/request composition, lifecycle helpers and the separate on-device example form the v0.1.0 candidate. Read the [changelog](CHANGELOG.md) and [compatibility guide](Guides/Compatibility.md) before integrating. The core package includes no model runtime, semantic search or automatic summarization.
+
+## Contributing and releases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development checks and [the release guide](Guides/Releasing.md) for the v0.1.0 publication sequence. [Release notes](RELEASE_NOTES.md) describe this first source release and its current limits.
+
+## License
+
+NovaContext is licensed under [Apache 2.0](LICENSE). See [NOTICE](NOTICE) for attribution. NovaGraph and its dependencies retain their own licenses and notices.

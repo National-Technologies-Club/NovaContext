@@ -2,6 +2,10 @@
 
 NovaContext is a separate Swift package. The core stores explicit, scoped memory, returns bounded reference blocks and can compose a bounded initial request; applications choose the model adapter and own its output.
 
+## Release status
+
+The v0.1.0 source candidate is prepared locally. The intended repository is `https://github.com/rhindsntc/NovaContext`, but it and the version tag have not been published. Remote installation and hosted CI remain pending until publication; local package installation is available now. See the [release guide](Releasing.md). Physical-device testing remains explicitly deferred.
+
 ## Declared support
 
 | Component | Requirements |
@@ -17,13 +21,15 @@ These deployment floors are declarations, not a claim that every OS/device combi
 
 ## Validation status
 
+- Release preparation on 2026-10-20 passed the existing core Debug build, all **82 tests across six suites** (7.160 seconds), and the optimized Release build, using Swift 6.4 / Xcode 27.0 (27A266a). Product sources are unchanged from `549581c`; the release-preparation changes cover licensing and documentation. NovaGraph resolves to exactly 1.0.0 at `5af2471965d33843b81a2aac3140e8c0b3c92233`. A local tagged-consumer check exercises versioned installation before publication; it cannot establish access to the eventual GitHub repository/tag.
+
 - The core suite passed all **82 tests across six suites** on 2026-10-17, using an Apple Silicon Mac with Swift 6.4 and Xcode 27.0 (27A266a). It includes persistence, full scoped listing, targeted edits, scope isolation, limits, keyword recall, memory packing, whole-request composition, asynchronous counting/cancellation and lifecycle errors. Debug and Release builds passed. A fresh archived-source downstream executable resolved NovaGraph 1.0.0 at `5af2471965d33843b81a2aac3140e8c0b3c92233`, compiled with only public imports and ran store → recall → compose → close, including explicit history and an asynchronous request-counter fixture. It used an independent consumer build directory, without the SDK checkout's `.build`. The local handoff records exact SDK revisions and logs.
 - OnDeviceMemory's search-tool implementation at `9201f4d` passed all **28 tests across two suites** on 2026-10-17 with Xcode 27.0 (27A266a), Debug, using iPhone 17 Pro / iOS 26.5 simulator `DEFD4F9D-2CB1-431F-A464-C9A970CA73C4`. Swift Testing reported 3.756 seconds and `xcodebuild` reported `TEST SUCCEEDED`. Tests cover the bounded actor/native wrapper, real scoped readers, exact output, alternate-query plumbing, failures, concurrent admission and stale/lifecycle publication using scripted responders; they do not call a real LLM. The same source passed an unsigned **Release build for generic iOS Simulator**, and the unchanged core passed **82 tests / six suites** again. A focused temporary model-free UI walkthrough also passed: one test, zero failures, 30.493 seconds, checking the composed-input display, truthful no-tool state and available memory controls without model use. See the [sample commands and dated UI results](../Examples/OnDeviceMemory/README.md#tests).
 - On 2026-10-14, the owner reported installing and testing OnDeviceMemory successfully. Device, OS, configuration, revision, mode and individual test outcomes were not supplied. This useful manual result does not imply completed device qualification or a measured performance budget.
 - A complete recorded real-model device walkthrough, combined app/model memory observation and first-response latency observation remain open. Older declared deployment floors have not received a device test in this work.
 - The GitHub Actions workflow checks the core on `macos-15` and prints its actual Xcode/Swift versions. A hosted run can only be confirmed after the repository is published and the workflow executes.
 
-The local release handoff records candidate revisions, dependency resolution and exact commands. No package release/tag or production certification is implied by this document.
+The release handoff records candidate revisions, dependency resolution and exact commands. Source-release preparation does not certify untested OS/device combinations or actual model behavior.
 
 ## Storage and integration limits
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — v0.1 candidate
+## 0.1.0 — prepared, publication pending
 
 - Durable, scoped memories backed by published NovaGraph 1.0.0, with explicit kind, origin, source and pinning.
 - Complete replacement by scope/UUID, durable deletion/clear, schema validation and explicit capacity errors.
@@ -13,5 +13,6 @@
 - A separate SwiftUI/Foundation Models example with a full editable stored-memory list, pin controls and visible provenance; captured-question recall, exact composed instructions/prompt and combined byte count; and answer invalidation plus recomposition after memory changes. Model-free preview, fresh sessions, cancellation, lifecycle handling and explicit model-memory saves remain available.
 - A sample-only read-only `search_project_notes` tool, fixed to the host project scope with two attempts per question and bounded queries/whole results. Separate composed-input and completed-search displays retain captured-question identity; results stay ephemeral, and lifecycle invalidation prevents stale publication. No public tool/plugin API is introduced.
 - Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
+- Apache 2.0 license, copyright attribution, contribution instructions and first-release notes.
 
-The owner reports a successful installed-sample test; a detailed physical-device qualification record remains incomplete. This candidate is local and has no published NovaContext remote, release tag or production certification.
+These are the prepared contents of the first source release. Repository/tag publication and hosted CI are pending. Physical-device and real-model tool-selection qualification remain pending; the earlier successful owner sample report is retained in the compatibility guide.
