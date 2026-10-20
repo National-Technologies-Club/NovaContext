@@ -21,7 +21,7 @@ Use an archive of the exact candidate commit for a fresh downstream consumer wit
 
 1. Merge the reviewed candidate into local `main`. Create the empty public `rhindsntc/NovaContext` repository without a generated README or license, add it as `origin`, and push `main`.
 2. Wait for the existing **Swift package** GitHub Actions workflow to pass its Debug build, tests and Release build. Review failures before tagging.
-3. Update preparation-only wording in README, changelog, release notes and compatibility using actual publication/check results. Update NovaGraph's web guide and generated data consistently. Do not claim a device check or hosted result that did not happen.
+3. Update preparation-only wording in README, changelog, release notes and compatibility using actual publication/check results. Update NovaGraph's web guide and generated data consistently. Do not claim a device check or hosted result that did not happen. Commit and push the final SDK documentation changes, review that committed revision, and wait for its hosted checks to pass before tagging it. Submit the matching NovaGraph documentation changes separately.
 4. Tag that exact reviewed commit and push the tag:
 
 ```sh
