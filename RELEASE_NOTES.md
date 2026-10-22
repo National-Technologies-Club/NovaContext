@@ -1,6 +1,6 @@
 # NovaContext v0.1.0
 
-Prepared release notes; the repository and tag are not published yet.
+Prepared release notes for [National-Technologies-Club/NovaContext](https://github.com/National-Technologies-Club/NovaContext). The public repository has been created; source publication, the version tag and the GitHub release remain pending.
 
 NovaContext brings persistent, scoped memory and bounded context assembly to Swift applications. It uses NovaGraph 1.0.0 for storage and lets your application choose its model and what to remember.
 

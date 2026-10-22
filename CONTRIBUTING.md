@@ -18,6 +18,6 @@ The separate iOS 26+ sample requires Xcode 26+ and XcodeGen. Its [README](Exampl
 
 ## Propose a change
 
-Open a focused issue or pull request after the repository is published. Explain the behavior, why it helps an application, and how it was verified. Include a regression test for behavior changes, and keep README, usage/compatibility guides and changelog consistent with public API changes. Keep plans, work logs, build products, generated Xcode projects and signing settings out of commits.
+Use the [NovaContext repository](https://github.com/National-Technologies-Club/NovaContext) for focused issues and pull requests once the source is published. Explain the behavior, why it helps an application, and how it was verified. Include a regression test for behavior changes, and keep README, usage/compatibility guides and changelog consistent with public API changes. Keep plans, work logs, build products, generated Xcode projects and signing settings out of commits.
 
 For bug reports include the NovaContext revision/version, resolved NovaGraph version, Xcode/Swift and OS versions, a small reproducer, and the actual error. Use synthetic examples; do not include application memory contents, credentials or private database files.

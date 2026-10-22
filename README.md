@@ -6,14 +6,14 @@ NovaContext provides durable memory storage and deterministic context assembly w
 
 ## Installation
 
-The first **v0.1.0** release is being prepared. The intended repository is `rhindsntc/NovaContext`; its repository and tag are not published yet. Use a local package until publication is complete.
+The first **v0.1.0** release is being prepared. The public [National-Technologies-Club/NovaContext repository](https://github.com/National-Technologies-Club/NovaContext) has been created; source publication and the version tag are still pending. Use a local package until publication is complete.
 
 ### Swift Package Manager
 
 After the `v0.1.0` tag is published, add this versioned dependency:
 
 ```swift
-.package(url: "https://github.com/rhindsntc/NovaContext.git", exact: "0.1.0")
+.package(url: "https://github.com/National-Technologies-Club/NovaContext.git", exact: "0.1.0")
 ```
 
 In Xcode, use **File → Add Package Dependencies**, enter that repository URL and select version **0.1.0**. Add the library product to your application target:

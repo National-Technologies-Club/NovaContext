@@ -15,4 +15,4 @@
 - Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
 - Apache 2.0 license, copyright attribution, contribution instructions and first-release notes.
 
-These are the prepared contents of the first source release. Repository/tag publication and hosted CI are pending. Physical-device and real-model tool-selection qualification remain pending; the earlier successful owner sample report is retained in the compatibility guide.
+These are the prepared contents of the first source release. The National-Technologies-Club/NovaContext repository has been created; source/tag publication and hosted CI are pending. Physical-device and real-model tool-selection qualification remain pending; the earlier successful owner sample report is retained in the compatibility guide.
