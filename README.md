@@ -6,11 +6,11 @@ NovaContext provides durable memory storage and deterministic context assembly w
 
 ## Installation
 
-The first **v0.1.0** release is being prepared. The public [National-Technologies-Club/NovaContext repository](https://github.com/National-Technologies-Club/NovaContext) has been created; source publication and the version tag are still pending. Use a local package until publication is complete.
+Install **NovaContext 0.1.0** from the public [National-Technologies-Club/NovaContext repository](https://github.com/National-Technologies-Club/NovaContext).
 
 ### Swift Package Manager
 
-After the `v0.1.0` tag is published, add this versioned dependency:
+Add this versioned dependency:
 
 ```swift
 .package(url: "https://github.com/National-Technologies-Club/NovaContext.git", exact: "0.1.0")
@@ -24,7 +24,7 @@ In Xcode, use **File → Add Package Dependencies**, enter that repository URL a
 
 ### Local development
 
-For now, add the NovaContext directory as a local Swift package in Xcode, or use a sibling package dependency:
+For local development, add the NovaContext directory as a local Swift package in Xcode, or use a sibling package dependency:
 
 ```swift
 .package(path: "../NovaContext")
@@ -235,7 +235,7 @@ NovaContext initializes schema metadata only in an empty database. Unsupported s
 ```sh
 swift package resolve
 swift build
-swift test
+swift test --no-parallel
 swift build -c release
 ```
 
@@ -243,7 +243,7 @@ Tests use real temporary Nova databases for persistence, replacement, full scope
 
 A macOS [CI workflow](.github/workflows/ci.yml) runs the three build/test commands above for pushes and pull requests. Hosted checks cover the core package without requiring Apple Intelligence. The sample's simulator tests are run separately as described in its README.
 
-Persistent storage, bounded reference/request composition, lifecycle helpers and the separate on-device example form the v0.1.0 candidate. Read the [changelog](CHANGELOG.md) and [compatibility guide](Guides/Compatibility.md) before integrating. The core package includes no model runtime, semantic search or automatic summarization.
+Persistent storage, bounded reference/request composition, lifecycle helpers and the separate on-device example form the v0.1.0 release. Read the [changelog](CHANGELOG.md) and [compatibility guide](Guides/Compatibility.md) before integrating. The core package includes no model runtime, semantic search or automatic summarization.
 
 ## Contributing and releases
 

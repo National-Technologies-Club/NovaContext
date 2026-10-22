@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — prepared, publication pending
+## 0.1.0 — 2026-10-22
 
 - Durable, scoped memories backed by published NovaGraph 1.0.0, with explicit kind, origin, source and pinning.
 - Complete replacement by scope/UUID, durable deletion/clear, schema validation and explicit capacity errors.
@@ -12,7 +12,7 @@
 - Serialized storage operations, cooperative cancellation, explicit trim/suspend/resume/close and observable failure outcomes.
 - A separate SwiftUI/Foundation Models example with a full editable stored-memory list, pin controls and visible provenance; captured-question recall, exact composed instructions/prompt and combined byte count; and answer invalidation plus recomposition after memory changes. Model-free preview, fresh sessions, cancellation, lifecycle handling and explicit model-memory saves remain available.
 - A sample-only read-only `search_project_notes` tool, fixed to the host project scope with two attempts per question and bounded queries/whole results. Separate composed-input and completed-search displays retain captured-question identity; results stay ephemeral, and lifecycle invalidation prevents stale publication. No public tool/plugin API is introduced.
-- Package CI, usage/compatibility documentation and independent clean-consumer installation verification.
+- Package CI, usage/compatibility documentation and independent clean-consumer installation verification. CI serializes independent database tests on shared runners while retaining each test's concurrency scenarios and production request deadlines.
 - Apache 2.0 license, copyright attribution, contribution instructions and first-release notes.
 
-These are the prepared contents of the first source release. The National-Technologies-Club/NovaContext repository has been created; source/tag publication and hosted CI are pending. Physical-device and real-model tool-selection qualification remain pending; the earlier successful owner sample report is retained in the compatibility guide.
+Initial source release. Physical-device and real-model tool-selection qualification remain pending; the earlier successful owner sample report is retained in the compatibility guide.

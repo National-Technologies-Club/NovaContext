@@ -21,6 +21,8 @@ jobs:
       - name: Build
         run: swift build
       - name: Test
-        run: swift test
+        # Independent real databases can contend for short lifecycle admission deadlines
+        # on shared runners. Concurrency scenarios inside each test still execute.
+        run: swift test --no-parallel
       - name: Release build
         run: swift build -c release

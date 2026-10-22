@@ -1,6 +1,6 @@
 # NovaContext v0.1.0
 
-Prepared release notes for [National-Technologies-Club/NovaContext](https://github.com/National-Technologies-Club/NovaContext). The public repository has been created; source publication, the version tag and the GitHub release remain pending.
+First source release of [National-Technologies-Club/NovaContext](https://github.com/National-Technologies-Club/NovaContext), licensed under Apache 2.0.
 
 NovaContext brings persistent, scoped memory and bounded context assembly to Swift applications. It uses NovaGraph 1.0.0 for storage and lets your application choose its model and what to remember.
 
@@ -18,6 +18,6 @@ The core uses Swift tools 6.0 with declared iOS 16/macOS 13 floors. These floors
 
 Each scope holds up to 128 memories. Memory text fits 4,096 UTF-8 bytes. Context and composition limits count rendered data; token limits require the application's counters. Native framing and later tool exchanges require separate model-context accounting. Scopes do not provide authentication or encryption, and one store/process owns a database directory.
 
-Physical-device testing, real-model search-tool selection and app/model memory/latency qualification remain pending. Local core, simulator and clean-consumer checks are recorded in [compatibility](Guides/Compatibility.md). Hosted CI and installation from the eventual GitHub tag must be checked after publication.
+Physical-device testing, real-model search-tool selection and app/model memory/latency qualification remain pending. Local core, simulator and clean-consumer checks are recorded in [compatibility](Guides/Compatibility.md). Hosted build and test results are available in [GitHub Actions](https://github.com/National-Technologies-Club/NovaContext/actions). The [release guide](Guides/Releasing.md) describes the CI and remote-consumer checks required for publication.
 
 The search tool lives in the sample. The core supplies no generic plugin API, model runtime, semantic retrieval, automatic extraction or summarization.

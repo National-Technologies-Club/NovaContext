@@ -4,7 +4,7 @@ NovaContext is a separate Swift package. The core stores explicit, scoped memory
 
 ## Release status
 
-The v0.1.0 source candidate is prepared locally. The public [National-Technologies-Club/NovaContext repository](https://github.com/National-Technologies-Club/NovaContext) has been created, but source publication and the version tag are still pending. Remote installation remains pending until source and tag publication, and hosted CI must run after the source is pushed; local package installation is available now. See the [release guide](Releasing.md). Physical-device testing remains explicitly deferred.
+NovaContext v0.1.0 is the first source release in the public [National-Technologies-Club/NovaContext repository](https://github.com/National-Technologies-Club/NovaContext). Install it with the versioned SwiftPM dependency in the README, or use a local package for development. See the [release guide](Releasing.md) for publication checks. Physical-device testing remains explicitly deferred.
 
 ## Declared support
 
@@ -27,9 +27,9 @@ These deployment floors are declarations, not a claim that every OS/device combi
 - OnDeviceMemory's search-tool implementation at `9201f4d` passed all **28 tests across two suites** on 2026-10-17 with Xcode 27.0 (27A266a), Debug, using iPhone 17 Pro / iOS 26.5 simulator `DEFD4F9D-2CB1-431F-A464-C9A970CA73C4`. Swift Testing reported 3.756 seconds and `xcodebuild` reported `TEST SUCCEEDED`. Tests cover the bounded actor/native wrapper, real scoped readers, exact output, alternate-query plumbing, failures, concurrent admission and stale/lifecycle publication using scripted responders; they do not call a real LLM. The same source passed an unsigned **Release build for generic iOS Simulator**, and the unchanged core passed **82 tests / six suites** again. A focused temporary model-free UI walkthrough also passed: one test, zero failures, 30.493 seconds, checking the composed-input display, truthful no-tool state and available memory controls without model use. See the [sample commands and dated UI results](../Examples/OnDeviceMemory/README.md#tests).
 - On 2026-10-14, the owner reported installing and testing OnDeviceMemory successfully. Device, OS, configuration, revision, mode and individual test outcomes were not supplied. This useful manual result does not imply completed device qualification or a measured performance budget.
 - A complete recorded real-model device walkthrough, combined app/model memory observation and first-response latency observation remain open. Older declared deployment floors have not received a device test in this work.
-- The GitHub Actions workflow checks the core on `macos-15` and prints its actual Xcode/Swift versions. A hosted run can only be confirmed after the source is pushed and the workflow executes.
+- The [GitHub Actions workflow](https://github.com/National-Technologies-Club/NovaContext/actions/workflows/ci.yml) checks core Debug build, all tests and Release build on `macos-15` and prints its actual Xcode/Swift versions. It uses `swift test --no-parallel` so independent real database fixtures do not contend for short lifecycle admission deadlines on shared runners. Explicit concurrency scenarios within each test remain active; production timeouts and test assertions are unchanged.
 
-The release handoff records candidate revisions, dependency resolution and exact commands. Source-release preparation does not certify untested OS/device combinations or actual model behavior.
+The release handoff records candidate revisions, dependency resolution and exact commands. A source release does not certify untested OS/device combinations or actual model behavior.
 
 ## Storage and integration limits
 
